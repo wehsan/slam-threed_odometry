@@ -1,11 +1,15 @@
 <package>
-  <description brief="">
-  
+  <description brief="3D Wheel and Leg Mobile Robots Odometry library">
+  This package contains a collection of odometry classes and configuration
+  types, which calculate the 6D relative movement of the robot depending on
+  a/change in the state of the robots actuators using 3D Kinematics.
+  Different robot classes are supported like e.g. wheel or legged systems are covered.
+  This 3D kinematics can also be enanced to provide near dynamic model fidelity
+  ate less computational cost than dynamic models.
   </description>
-  <author>/</author>
-  <license></license>
-  <url>http://</url>
-  <logo>http://</logo>
+  <author>Javier Hidalgo Carrio/javier.hidalgo_carrio@dfki.de</author>
+  <license> GPL v2 or later </license>
+  <url>http://rock-robotics.org</url>
   <depend package="base/cmake" />
   <!--
    To add any dependencies use the depend tag
@@ -14,4 +18,6 @@
   <depend package="dummy-dependency-n-1" />
   <depend package="dummy-dependency-n" />
   -->
+  <depend package="base/types" />
+  <depend package="control/kdl_parser" />
 </package>
