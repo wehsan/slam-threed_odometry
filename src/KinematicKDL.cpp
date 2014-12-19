@@ -397,7 +397,7 @@ void KinematicKDL::fkSolver(const std::vector<double> &positions, std::vector<Ei
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> KinematicKDL::jacobianSolver(const std::vector<double> &positions)
 {
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> J;
-    J.resize(6*this->RobotTrees, this->MODEL_DOF);
+    J.resize(6*this->RobotTrees, this->MODEL_DOF); J.setZero();
 
     /** Check if the number of values is correct **/
     if (positions.size() == static_cast<unsigned int>(this->MODEL_DOF))

@@ -16,7 +16,6 @@
 
 
 #define EIGEN_NO_AUTOMATIC_RESIZING //To avoid automatic resizing of Dynamic Matrices
-#define EIGEN_INITIALIZE_MATRICES_BY_ZERO //Zero as default value for Jacobian matrices
 
 /* Base includes */
 #include <assert.h> /** Assert **/
