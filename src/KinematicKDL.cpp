@@ -397,10 +397,10 @@ void KinematicKDL::fkSolver(const std::vector<double> &positions, std::vector<Ei
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> KinematicKDL::jacobianSolver(const std::vector<double> &positions)
 {
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> J;
-    J.resize(6*this->RobotTrees, this->RobotJointDoF);
+    J.resize(6*this->RobotTrees, this->MODEL_DOF);
 
     /** Check if the number of values is correct **/
-    if (positions.size() == static_cast<unsigned int>(this->RobotJointDoF))
+    if (positions.size() == static_cast<unsigned int>(this->MODEL_DOF))
     {
         /** Calculate the Jacobian Solver for all the chains of the robot **/
         for (register int i=0; i<static_cast<int>(this->wheel_radius.size()); ++i)
@@ -447,7 +447,7 @@ Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> KinematicKDL::jacobianSolv
             unsigned int njTotal = chain.getNrOfJoints();
             KDL::JntArray jointpositions = KDL::JntArray(njTotal);
 
-            /** Create KDL jacobian **/
+            /** Create KDL Jacobian **/
             KDL::Jacobian kdljacob;
             kdljacob.resize(njTotal);
 

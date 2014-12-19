@@ -35,24 +35,24 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     int _RobotTrees, _RobotJointDoF, _SlipDoF, _ContactDoF;
 
     /** VALUES FOR EXOTER **/
-    _RobotTrees = 4; _RobotJointDoF = 6 + 4 + 6 + 3;// NUMBER_OF_WHEELS + NUMBER_OF_STEERABLE_WHEELS + NUMBER_OF_WALKING_WHEELS + NUMBER_OF_PASSIVE_JOINTS
+    _RobotTrees = 6; _RobotJointDoF = 6 + 4 + 6 + 3;// NUMBER_OF_WHEELS + NUMBER_OF_STEERABLE_WHEELS + NUMBER_OF_WALKING_WHEELS + NUMBER_OF_PASSIVE_JOINTS
     _SlipDoF = 3; _ContactDoF = 1;
     wheel_radius.resize(_RobotTrees);
     for(std::vector<float>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
     {
         *it = 0.072703; //Wheel radius value
     }
+    /*****************************************/
+    /** END OF EDITABLE PART FOR PARAMETERS **/
+    /*****************************************/
 
     std::cout<<"********* ROBOT KDL MODEL *********\n";
     KinematicKDL robotKDL(_RobotTrees, _RobotJointDoF, _SlipDoF, _ContactDoF, urdf_file, wheel_radius);
     std::cout<<"** URDF FILE: "<<urdf_file<<"\n";
+    std::cout<<"** ROBOT MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
     for (std::vector<float>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)
         std::cout<<"** ROBOT WHEELS RADIUS: "<< *it <<"\n";
-    std::cout<<"** MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
 
-    /*****************************************/
-    /** END OF EDITABLE PART FOR PARAMETERS **/
-    /*****************************************/
     std::vector<double> joints (robotKDL.MODEL_DOF, 0);
     std::vector<Eigen::Affine3d> fkRobotKDL; // Vector of Forward Kinematics Transformation
     std::vector<base::Matrix6d> fkCovKDL; // Vector of Covariance matrices
