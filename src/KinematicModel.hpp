@@ -105,17 +105,29 @@ namespace threed_odometry
             /** The complete number of DoF of the Robot Model. This is compute for the whole Robot Jacobian Matrix */
             unsigned int MODEL_DOF;
 
+        protected:
+            /**@brief return @MAX_CHAIN_DOF. Equivalent to the number of columns in the Jacobian.
+             */
+            inline void setMaxChainDoF(const unsigned int max_chain_dof)
+            {
+                this->MAX_CHAIN_DOF = max_chain_dof;
+            }
+            /**@brief return @MODEL_DOF.
+             */
+            inline void setModelDoF(const unsigned int model_dof)
+            {
+                this->MODEL_DOF = model_dof;
+            }
+
         public:
 
             /**@brief Constructor
              **/
-            KinematicModel(const int _RobotTrees, const int _RobotJointDoF,
-                            const int _SlipDoF, const int _ContactDoF)
-                            :RobotTrees(_RobotTrees), RobotJointDoF(_RobotJointDoF),
-                            SlipDoF(_SlipDoF), ContactDoF(_ContactDoF),
-                            MAX_CHAIN_DOF(_RobotJointDoF+_SlipDoF+_ContactDoF),
-                            MODEL_DOF(_RobotJointDoF+_RobotTrees*(_SlipDoF+_ContactDoF))
+            KinematicModel(const int _RobotTrees, const int _SlipDoF, const int _ContactDoF)
+                            :RobotTrees(_RobotTrees), SlipDoF(_SlipDoF), ContactDoF(_ContactDoF)
             {
+                MAX_CHAIN_DOF = -1;
+                MODEL_DOF = -1;
             }
 
             /** @brief return the number of Trees @RobotTrees
@@ -150,7 +162,7 @@ namespace threed_odometry
             }
             /**@brief return @MODEL_DOF.
              */
-            inline unsigned int getModelDOF()
+            inline unsigned int getModelDoF()
             {
                 return MODEL_DOF;
             }

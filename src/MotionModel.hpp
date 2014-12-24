@@ -86,7 +86,7 @@ namespace odometry
      * the Tree needs to be split according to it (e.g: two Trees).
      * Take <a href="http://robotik.dfki-bremen.de/en/forschung/robotersysteme/asguard-ii.html">Asguard</a> wheel
      * as an example. If we want to model the wheel as two feet can have point in contact, two Trees
-     * needs to be created in the wheel (virtualy increasing the number of Trees).
+     * needs to be created in the wheel (virtually increasing the number of Trees).
      *
      */
     template <typename _Scalar, int _RobotTrees, int _RobotJointDoF, int _SlipDoF, int _ContactDoF>
@@ -98,7 +98,7 @@ namespace odometry
             /** This is also the order of storage of the values. Columns of the robot Jacobian (J) */
             static const unsigned int MODEL_DOF = _RobotJointDoF+_RobotTrees*(_SlipDoF+_ContactDoF);
 
-            /** The potentical contact point of the kineatic chain  does not have contact **/
+            /** The potential contact point of the kinematic chain  does not have contact **/
             static const int NO_CONTACT = -1;
 
         public:

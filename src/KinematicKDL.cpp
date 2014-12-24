@@ -11,25 +11,10 @@
 
 using namespace threed_odometry;
 
-KinematicKDL::KinematicKDL (const int _RobotTrees, const int _RobotJointDoF,
-                            const int _SlipDoF, const int _ContactDoF,
-                            std::string &urdf_file, std::vector<float> &wheel_radius):
-                            KinematicModel (_RobotTrees, _RobotJointDoF,  _SlipDoF, _ContactDoF)
+KinematicKDL::KinematicKDL (std::string &urdf_file, const int _RobotTrees, const int _SlipDoF,
+                            const int _ContactDoF, std::vector<float> &wheel_radius):
+                            KinematicModel (_RobotTrees, _SlipDoF, _ContactDoF)
 {
-
-    /** Take the wheel radius **/
-    this->wheel_radius = wheel_radius;
-
-    /** The number of wheels must be the same as the number of trees **/
-    /** In case your robot does not have wheels, make a vector of wheels with zero radius **/
-    assert (this->wheel_radius.size() == static_cast<size_t>(this->getNumberOfTrees()));
-
-    /** Properly size the Jacobian matrices. One per wheel/One foot per wheel **/
-    vector_jacobians.resize(this->wheel_radius.size());
-    for(register size_t i=0; i<wheel_radius.size(); ++i)
-    {
-        vector_jacobians[i].resize(2*3, MAX_CHAIN_DOF);
-    }
 
     /** Read URDF file **/
     std::string xml_string;
@@ -71,6 +56,27 @@ KinematicKDL::KinematicKDL (const int _RobotTrees, const int _RobotJointDoF,
     std::cout << " Original Tree has " << this->tree.getNrOfSegments() << " link(s) and "<< this->tree.getNrOfJoints() <<" Joint(s)\n";
     std::cout << " ======================================" << std::endl;
     #endif
+
+    /** Store the value of Joints **/
+    RobotJointDoF =this->tree.getNrOfJoints();
+
+    /** Store two important values, the maximum dof in robot chains and the whole max model dof **/
+    this->setMaxChainDoF(RobotJointDoF+SlipDoF+ContactDoF);
+    this->setModelDoF(RobotJointDoF+RobotTrees*(SlipDoF+ContactDoF));
+
+    /** Take the wheel radius **/
+    this->wheel_radius = wheel_radius;
+
+    /** The number of wheels must be the same as the number of trees **/
+    /** In case your robot does not have wheels, make a vector of wheels with zero radius **/
+    assert (this->wheel_radius.size() == static_cast<size_t>(this->getNumberOfTrees()));
+
+    /** Properly size the Jacobian matrices. One per wheel/One foot per wheel **/
+    vector_jacobians.resize(this->wheel_radius.size());
+    for(register size_t i=0; i<wheel_radius.size(); ++i)
+    {
+        vector_jacobians[i].resize(2*3, MAX_CHAIN_DOF);
+    }
 
     for (register unsigned int j=0; j<this->wheel_radius.size(); ++j)
     {

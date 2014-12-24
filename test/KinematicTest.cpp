@@ -32,11 +32,10 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /** the code.                         **/
     /***************************************/
     std::vector<float> wheel_radius;
-    int _RobotTrees, _RobotJointDoF, _SlipDoF, _ContactDoF;
+    int _RobotTrees, _SlipDoF, _ContactDoF;
 
     /** VALUES FOR EXOTER **/
-    _RobotTrees = 6; _RobotJointDoF = 6 + 4 + 6 + 3;// NUMBER_OF_WHEELS + NUMBER_OF_STEERABLE_WHEELS + NUMBER_OF_WALKING_WHEELS + NUMBER_OF_PASSIVE_JOINTS
-    _SlipDoF = 3; _ContactDoF = 1;
+    _RobotTrees = 6; _SlipDoF = 3; _ContactDoF = 1;
     wheel_radius.resize(_RobotTrees);
     for(std::vector<float>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
     {
@@ -47,7 +46,7 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /*****************************************/
 
     std::cout<<"********* ROBOT KDL MODEL *********\n";
-    KinematicKDL robotKDL(_RobotTrees, _RobotJointDoF, _SlipDoF, _ContactDoF, urdf_file, wheel_radius);
+    KinematicKDL robotKDL(urdf_file, _RobotTrees, _SlipDoF, _ContactDoF, wheel_radius);
     std::cout<<"** URDF FILE: "<<urdf_file<<"\n";
     std::cout<<"** ROBOT MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
     for (std::vector<float>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)

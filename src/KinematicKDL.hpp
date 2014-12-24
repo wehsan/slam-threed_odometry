@@ -65,10 +65,8 @@ namespace threed_odometry
         std::vector<int>  contact_idx; /** Foot index making the motion (0,...,n) of the wheelidx wheel **/
 
     public:
-
-        KinematicKDL(const int _RobotTrees, const int _RobotJointDoF,
-                        const int _SlipDoF, const int _ContactDoF,
-                        std::string &urdf_file, std::vector<float> &wheel_radius);
+        KinematicKDL (std::string &urdf_file, const int _RobotTrees, const int _SlipDoF,
+                            const int _ContactDoF, std::vector<float> &wheel_radius);
         ~KinematicKDL();
 
         std::string name();
