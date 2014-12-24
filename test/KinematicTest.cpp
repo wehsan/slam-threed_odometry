@@ -32,11 +32,11 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /** the code.                         **/
     /***************************************/
     std::vector<float> wheel_radius;
-    int _RobotTrees, _SlipDoF, _ContactDoF;
+    int _SlipDoF, _ContactDoF;
 
     /** VALUES FOR EXOTER **/
-    _RobotTrees = 6; _SlipDoF = 3; _ContactDoF = 1;
-    wheel_radius.resize(_RobotTrees);
+    _SlipDoF = 3; _ContactDoF = 1;
+    wheel_radius.resize(6);
     for(std::vector<float>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
     {
         *it = 0.072703; //Wheel radius value
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /*****************************************/
 
     std::cout<<"********* ROBOT KDL MODEL *********\n";
-    KinematicKDL robotKDL(urdf_file, _RobotTrees, _SlipDoF, _ContactDoF, wheel_radius);
+    KinematicKDL robotKDL(urdf_file, wheel_radius, _SlipDoF, _ContactDoF);
     std::cout<<"** URDF FILE: "<<urdf_file<<"\n";
     std::cout<<"** ROBOT MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
     for (std::vector<float>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE( URDFModel)
 
     std::cout<<"**\n\n******* ROBOT KDL JACOBIAN *********\n";
     Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> JKdl;
-    JKdl.resize(6*_RobotTrees, robotKDL.MODEL_DOF);
+    JKdl.resize(6*wheel_radius.size(), robotKDL.MODEL_DOF);
 
     JKdl = robotKDL.jacobianSolver(joints);
 

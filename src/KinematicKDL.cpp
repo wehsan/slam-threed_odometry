@@ -11,9 +11,9 @@
 
 using namespace threed_odometry;
 
-KinematicKDL::KinematicKDL (std::string &urdf_file, const int _RobotTrees, const int _SlipDoF,
-                            const int _ContactDoF, std::vector<float> &wheel_radius):
-                            KinematicModel (_RobotTrees, _SlipDoF, _ContactDoF)
+KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_radius,
+                        const int _SlipDoF, const int _ContactDoF):
+                        KinematicModel (static_cast<const int>(wheel_radius.size()), _SlipDoF, _ContactDoF)
 {
 
     /** Read URDF file **/
