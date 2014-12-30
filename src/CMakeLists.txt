@@ -3,5 +3,6 @@ rock_library(threed_odometry
     DEPS_PKGCONFIG base-types base-lib kdl_parser
     HEADERS KinematicModel.hpp
             KinematicKDL.hpp
-            MotionModel.hpp)
+            MotionModel.hpp
+            IIR.hpp)
 
