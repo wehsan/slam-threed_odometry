@@ -7,7 +7,9 @@
 #define R2D 180.00/M_PI /** Convert radian to degree **/
 #endif
 
-#define DEBUG_PRINTS 1
+#define EIGEN_NO_AUTOMATIC_RESIZING //To avoid automatic resizing of Dynamic Matrices
+
+//#define DEBUG_PRINTS 1
 
 using namespace threed_odometry;
 
@@ -57,7 +59,7 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
     std::cout << " ======================================" << std::endl;
     #endif
 
-    /** Store the value of Joints **/
+    /** Store the value of number of robot Joints **/
     RobotJointDoF =this->tree.getNrOfJoints();
 
     /** Store two important values, the maximum dof in robot chains and the whole max model dof **/

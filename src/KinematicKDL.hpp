@@ -14,9 +14,6 @@
 #ifndef ODOMETRY_KINEMATIC_KDL_HPP
 #define ODOMETRY_KINEMATIC_KDL_HPP
 
-
-#define EIGEN_NO_AUTOMATIC_RESIZING //To avoid automatic resizing of Dynamic Matrices
-
 /* Base includes */
 #include <assert.h> /** Assert **/
 #include <sstream>
