@@ -55,14 +55,15 @@ namespace threed_odometry
     protected:
         KDL::Tree tree; /** There are as many chains as number of _RobotTrees **/
         std::string model_name; /** Name of the model class **/
-        std::vector<float> wheel_radius; /** Number and wheel radius **/
+        std::vector<std::string> contact_points; /** Number and name of contact points links **/
+        std::vector<double> wheel_radius; /** Number and wheel radius **/
 
         /** Wheel Jacobian Matrix  (passive joint for Rear wheels/column of zeros for Front wheels, wheel rotation, (3 x 1)slip vector and contact_angle **/
         std::vector< Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> , Eigen::aligned_allocator < Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> > > vector_jacobians;
         std::vector<int>  contact_idx; /** Foot index making the motion (0,...,n) of the wheelidx wheel **/
 
     public:
-        KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_radius,
+        KinematicKDL (std::string &urdf_file, std::vector<std::string> &contact_points, std::vector<double> &wheel_radius,
                 const int _SlipDoF, const int _ContactDoF);
         ~KinematicKDL();
 
@@ -77,7 +78,7 @@ namespace threed_odometry
 
     static void printLink(const KDL::SegmentMap::const_iterator& link, const std::string& prefix)
     {
-        //std::cout << prefix << "- Segment " << link->second.segment.getName() << " has " << link->second.children.size() << " children" << std::endl;
+        std::cout << prefix << "- Segment " << link->second.segment.getName() << " has " << link->second.children.size() << " children" << std::endl;
         for (unsigned int i=0; i<link->second.children.size(); ++i)
             printLink(link->second.children[i], prefix + "  ");
     };
@@ -87,7 +88,7 @@ namespace threed_odometry
         if (link->second.children.size() == 0)
             return link->second.segment.getName();
 
-        //std::cout<<link->second.segment.getName() << " has "<<link->second.children.size()<<" children\n";
+        std::cout<<link->second.segment.getName() << " has "<<link->second.children.size()<<" children\n";
         return getContactPoint(link->second.children[childrenIdx], 0);
     };
 

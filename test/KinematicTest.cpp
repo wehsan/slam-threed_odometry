@@ -31,25 +31,27 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /** for your Robot model. Manually in **/
     /** the code.                         **/
     /***************************************/
-    std::vector<float> wheel_radius;
+    std::vector<double> wheel_radius;
     int _SlipDoF, _ContactDoF;
 
     /** VALUES FOR EXOTER **/
     _SlipDoF = 3; _ContactDoF = 1;
     wheel_radius.resize(6);
-    for(std::vector<float>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
+    for(std::vector<double>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
     {
         *it = 0.072703; //Wheel radius value
     }
+
+    std::string str[] = {"0_3_link", "1_3_link", "2_2_link", "3_2_link", "4_3_link", "5_3_link"};
     /*****************************************/
     /** END OF EDITABLE PART FOR PARAMETERS **/
     /*****************************************/
-
+    std::vector<std::string> contact_points( str, str + (sizeof(str)/sizeof(std::string)));
     std::cout<<"********* ROBOT KDL MODEL *********\n";
-    KinematicKDL robotKDL(urdf_file, wheel_radius, _SlipDoF, _ContactDoF);
+    KinematicKDL robotKDL(urdf_file, contact_points, wheel_radius, _SlipDoF, _ContactDoF);
     std::cout<<"** URDF FILE: "<<urdf_file<<"\n";
     std::cout<<"** ROBOT MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
-    for (std::vector<float>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)
+    for (std::vector<double>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)
         std::cout<<"** ROBOT WHEELS RADIUS: "<< *it <<"\n";
 
     std::vector<double> joints (robotKDL.MODEL_DOF, 0);

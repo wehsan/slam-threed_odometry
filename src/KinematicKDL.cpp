@@ -9,11 +9,11 @@
 
 #define EIGEN_NO_AUTOMATIC_RESIZING //To avoid automatic resizing of Dynamic Matrices
 
-//#define DEBUG_PRINTS 1
+#define DEBUG_PRINTS 1
 
 using namespace threed_odometry;
 
-KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_radius,
+KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<std::string> &contact_points, std::vector<double> &wheel_radius,
                         const int _SlipDoF, const int _ContactDoF):
                         KinematicModel (static_cast<const int>(wheel_radius.size()), _SlipDoF, _ContactDoF)
 {
@@ -39,8 +39,16 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
     /** Assign an information string name **/
     this->model_name = robot->getName();
 
+    /** Take the wheel radius **/
+    this->wheel_radius = wheel_radius;
+
+    /** Take the contact points of the URDF model **/
+    this->contact_points = contact_points;
+
     LOG_INFO("[KDL_MODEL] Robot name is: %s\n", this->model_name.c_str());
     LOG_INFO("[KDL_MODEL] Robot has %d number of Trees\n",this->wheel_radius.size());
+    LOG_INFO("[KDL_MODEL] Robot has %d DoF for Slip Vector\n",this->SlipDoF);
+    LOG_INFO("[KDL_MODEL] Robot has %d DoF for Contact Vector\n",this->ContactDoF);
 
     /* get root link*/
     boost::shared_ptr<const urdf::Link> root_link = robot->getRoot();
@@ -66,12 +74,10 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
     this->setMaxChainDoF(RobotJointDoF+SlipDoF+ContactDoF);
     this->setModelDoF(RobotJointDoF+RobotTrees*(SlipDoF+ContactDoF));
 
-    /** Take the wheel radius **/
-    this->wheel_radius = wheel_radius;
-
     /** The number of wheels must be the same as the number of trees **/
     /** In case your robot does not have wheels, make a vector of wheels with zero radius **/
     assert (this->wheel_radius.size() == static_cast<size_t>(this->getNumberOfTrees()));
+    assert (this->wheel_radius.size() == this->contact_points.size());
 
     /** Properly size the Jacobian matrices. One per wheel/One foot per wheel **/
     vector_jacobians.resize(this->wheel_radius.size());
@@ -91,36 +97,40 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
         KDL::Chain chain;//!Create the chain
 
         /** Create the contact angle and the slip vector/displacement subchain **/
-        chain.addSegment(KDL::Segment(chainidx.str()+"_CONTACT", KDL::Joint(KDL::Joint::RotY),KDL::Frame(KDL::Vector(0.0,0.0,-wheel_radius[j]))));//Contact angle
+        if (this->ContactDoF == 1)
+            chain.addSegment(KDL::Segment(chainidx.str()+"_CONTACT", KDL::Joint(KDL::Joint::RotY),KDL::Frame(KDL::Vector(0.0,0.0,-wheel_radius[j]))));//Contact angle
+        else
+            throw std::runtime_error("[KDL_MODEL] Currently only One Contact DoF is supported\n");
+
+        /** Translation due to wheel radius **/
         chain.addSegment(KDL::Segment(chainidx.str()+"_MOVE",KDL::Joint(KDL::Joint::TransX),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Translation along X-axis
-        chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPX",KDL::Joint(KDL::Joint::TransX),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along X-axis
-        chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPY",KDL::Joint(KDL::Joint::TransY),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along Y-axis
-        chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPZ",KDL::Joint(KDL::Joint::RotZ),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along Z-axis
+
+        if (this->SlipDoF > 0)
+            chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPX",KDL::Joint(KDL::Joint::TransX),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along X-axis
+
+        if (this->SlipDoF > 1)
+            chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPY",KDL::Joint(KDL::Joint::TransY),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along Y-axis
+
+        if (this->SlipDoF > 2)
+            chain.addSegment(KDL::Segment(chainidx.str()+"_SLIPZ",KDL::Joint(KDL::Joint::RotZ),KDL::Frame(KDL::Vector(0.0,0.0,0.0))));//Slip vector along Z-axis
+
+        if (this->SlipDoF > 3)
+            throw std::runtime_error("[KDL_MODEL] ERROR only 3-Dimensional Slip Vector is possible in a plane. Please check your configuration parameters!!\n");
 
         /** Add to the end of the selected chain **/
-        std::string endChain;
-        switch (j)
-        {
-            case 1:
-                 endChain = getContactPoint(root->second.children[1], 0);
-                 break;
-            case 2:
-                 endChain = getContactPoint(root->second.children[0], 1);
-                 break;
-            case 3:
-                 endChain = getContactPoint(root->second.children[1], 1);
-                 break;
-            case 4:
-                 endChain = getContactPoint(root->second.children[2], 0);
-                 break;
-            case 5:
-                 endChain = getContactPoint(root->second.children[2], 1);
-                 break;
-            default:
-                 endChain = getContactPoint(root->second.children[0], 0);
-                 break;
+        std::string endChain = this->contact_points[j];
 
+        #ifdef DEBUG_PRINTS
+        std::cout<<"[KDL_MODEL] EndChain is :"<<endChain<<"\n";
+        std::cout<<"[KDL_MODEL] Contact Points are :\n";
+        for (std::vector<std::string>::iterator it = this->contact_points.begin();
+            it != this->contact_points.end(); ++it)
+        {
+            std::cout<<" "<<*it;
         }
+        std::cout<<"\n";
+        #endif
+
         bool exit_value = tree.addChain(chain, endChain);
         if(!exit_value)
         {
@@ -128,7 +138,8 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
         }
         LOG_INFO("[KDL_MODEL] Odometry Kinematics Chain has: %d new more segments\n", chain.getNrOfSegments());
 
-
+        /** Set the new contact point name **/
+        this->contact_points[j] = chain.getSegment(chain.getNrOfSegments()-1).getName();
     }
 
     #ifdef DEBUG_PRINTS
@@ -138,6 +149,15 @@ KinematicKDL::KinematicKDL (std::string &urdf_file, std::vector<float> &wheel_ra
     std::cout << " Root link" << std::endl;
     std::cout << " ======================================" << std::endl;
     printLink(root, "");
+
+    std::cout << "\n======================================" << std::endl;
+    std::cout<<"[KDL_MODEL] New Contact Points are :\n";
+    for (std::vector<std::string>::iterator it = this->contact_points.begin();
+        it != this->contact_points.end(); ++it)
+    {
+        std::cout<<" "<<*it;
+    }
+    std::cout << "\n======================================" << std::endl;
     #endif
 }
 
@@ -187,30 +207,7 @@ void KinematicKDL::fkBody2ContactPointt(const int chainIdx, const std::vector<do
         }
         else
         {
-            std::string contactPoint;
-            switch (chainIdx)
-            {
-                case 1:
-                     contactPoint = getContactPoint(root->second.children[1], 0);
-                     break;
-                case 2:
-                     contactPoint = getContactPoint(root->second.children[0], 1);
-                     break;
-                case 3:
-                     contactPoint = getContactPoint(root->second.children[1], 1);
-                     break;
-                case 4:
-                     contactPoint = getContactPoint(root->second.children[2], 0);
-                     break;
-                case 5:
-                     contactPoint = getContactPoint(root->second.children[2], 1);
-                     break;
-                default:
-                     contactPoint = getContactPoint(root->second.children[0], 0);
-                     break;
-
-
-            }
+            std::string contactPoint = this->contact_points[chainIdx];
 
             #ifdef DEBUG_PRINTS
             std::cout<<"[FORWARD_KINEMATICS] ContactPoint is :"<<contactPoint<<"\n";
