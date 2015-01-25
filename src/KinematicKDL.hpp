@@ -26,27 +26,25 @@
 
 #include <Eigen/Core>
 
-/* Odometry library */
-#include <threed_odometry/KinematicModel.hpp> /** For the Odometry class to inherit **/
-
 /* KDL Parser */
 #include <kdl_parser/kdl_parser.hpp>
 
 /** KDL library **/
 #include <kdl/frames_io.hpp> /** Defines KDL frames **/
-#include <kdl/chainfksolver.hpp> /** Solve forward kinematics **/
-#include <kdl/chainfksolverpos_recursive.hpp> /** Position of the end-effector **/
+#include <kdl/treefksolver.hpp> /** Solve forward kinematics **/
+#include <kdl/treefksolverpos_recursive.hpp> /** Solve forward kinematics **/
 #include <kdl/chainjnttojacsolver.hpp> /** For Jacobian matrix **/
+#include <kdl/treejnttojacsolver.hpp> /** For Jacobian matrix **/
 
 
 /* URDF */
-#include "urdf_parser/urdf_parser.h"
+#include <urdf_parser/urdf_parser.h>
 #include <urdf_model/model.h>
 
 namespace threed_odometry
 {
 
-    class KinematicKDL : public ::threed_odometry::KinematicModel<double>
+    class KinematicKDL
     {
 
     public:
@@ -55,30 +53,32 @@ namespace threed_odometry
     protected:
         KDL::Tree tree; /** There are as many chains as number of _RobotTrees **/
         std::string model_name; /** Name of the model class **/
-        std::vector<std::string> contact_points; /** Number and name of contact points links **/
-        std::vector<double> wheel_radius; /** Number and wheel radius **/
-
-        /** Wheel Jacobian Matrix  (passive joint for Rear wheels/column of zeros for Front wheels, wheel rotation, (3 x 1)slip vector and contact_angle **/
-        std::vector< Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> , Eigen::aligned_allocator < Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> > > vector_jacobians;
-        std::vector<int>  contact_idx; /** Foot index making the motion (0,...,n) of the wheelidx wheel **/
+        std::vector<std::string> contact_points; /** Number and segment names of contact points **/
+        int number_robot_joints, number_slip_joints, number_contact_joints;
 
     public:
-        KinematicKDL (std::string &urdf_file, std::vector<std::string> &contact_points, std::vector<double> &wheel_radius,
-                const int _SlipDoF, const int _ContactDoF);
+        unsigned int model_dof;
+
+
+    public:
+        KinematicKDL (const std::string &urdf_file, const std::vector<std::string> &contact_points, 
+                const int _number_robot_joints, const int _number_slip_joints, const int _number_contact_joints);
         ~KinematicKDL();
 
-        std::string name();
-        void contactPointsPerTree (std::vector<unsigned int> &contactPoints);
-        void setPointsInContact (const std::vector<int> &pointsInContact);
-        void fkBody2ContactPointt(const int chainIdx, const std::vector<double> &positions, Eigen::Affine3d &fkTrans, base::Matrix6d &fkCov);
-        void fkSolver(const std::vector<double> &positions, std::vector<Eigen::Affine3d> &fkRobot, std::vector<base::Matrix6d> &fkCov);
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> jacobianSolver(const std::vector<double> &positions);
+        std::string getName();
+        void fkSolver(const std::vector<double> &positions, std::vector<Eigen::Affine3d> &fkTrans, std::vector<base::Matrix6d> &fkCov);
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> jacobianSolver(const std::vector<std::string> &names, const std::vector<double> &positions);
+        void unpackJoints(const std::vector<std::string>& joint_names, const std::vector<double>& joint_positions,
+                                const std::vector<std::string>& involved_joints, KDL::JntArray& joint_array);
+        void organizeJacobian(const int chainidx, const std::vector<std::string> &joint_names, const std::vector<std::string> &involved_joints,
+                                    const Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> &jacobian, Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> &J);
 
     };
 
     static void printLink(const KDL::SegmentMap::const_iterator& link, const std::string& prefix)
     {
-        std::cout << prefix << "- Segment " << link->second.segment.getName() << " has " << link->second.children.size() << " children" << std::endl;
+        std::cout << prefix << "- Segment " << link->second.segment.getName() << " [Joint "<< link->second.segment.getJoint().getName()<<
+            "] has " << link->second.children.size() << " children" << std::endl;
         for (unsigned int i=0; i<link->second.children.size(); ++i)
             printLink(link->second.children[i], prefix + "  ");
     };

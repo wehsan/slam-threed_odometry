@@ -5,7 +5,6 @@
 
 /** Library includes **/
 #include <threed_odometry/KinematicKDL.hpp>
-#include <threed_odometry/KinematicModel.hpp>
 
 #define BOOST_TEST_MODULE KinematicModelTest
 #include <boost/test/included/unit_test.hpp>
@@ -31,60 +30,96 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /** for your Robot model. Manually in **/
     /** the code.                         **/
     /***************************************/
-    std::vector<double> wheel_radius;
-    int _SlipDoF, _ContactDoF;
 
     /** VALUES FOR EXOTER **/
-    _SlipDoF = 3; _ContactDoF = 1;
-    wheel_radius.resize(6);
-    for(std::vector<double>::iterator it = wheel_radius.begin(); it != wheel_radius.end(); ++it)
-    {
-        *it = 0.072703; //Wheel radius value
-    }
+    std::string str_contact_segments[] = {"fl_segment_slipz", "fr_segment_slipz", "ml_segment_slipz", "mr_segment_slipz", "rl_segment_slipz", "rr_segment_slipz"};
 
-    std::string str[] = {"0_3_link", "1_3_link", "2_2_link", "3_2_link", "4_3_link", "5_3_link"};
+    std::string str_joint_names[] = {"left_passive", "fl_mimic", "fl_walking", "fl_steer", "fl_drive", "fl_contact", "fl_translation", "fl_slipx", "fl_slipy", "fl_slipz",
+                                        "ml_mimic", "ml_walking", "ml_drive", "ml_contact", "ml_translation", "ml_slipx", "ml_slipy", "ml_slipz",
+                                        "rear_passive", "rl_mimic", "rl_walking", "rl_steer", "rl_drive", "rl_contact", "rl_translation", "rl_slipx", "rl_slipy", "rl_slipz",
+                                        "rr_mimic", "rr_walking", "rr_steer", "rr_drive", "rr_contact", "rr_translation", "rr_slipx", "rr_slipy", "rr_slipz",
+                                        "right_passive", "fr_mimic", "fr_walking", "fr_steer", "fr_drive", "fr_contact", "fr_translation", "fr_slipx", "fr_slipy", "fr_slipz",
+                                        "mr_mimic", "mr_walking", "mr_drive", "mr_contact", "mr_translation", "mr_slipx", "mr_slipy", "mr_slipz"};
+
+    std::string str_robot_joints[] = {"left_passive", "fl_mimic", "fl_walking", "fl_steer", "fl_drive", "fl_translation",
+                                        "ml_mimic", "ml_walking", "ml_drive", "ml_translation",
+                                        "rear_passive", "rl_mimic", "rl_walking", "rl_steer", "rl_drive", "rl_translation",
+                                        "rr_mimic", "rr_walking", "rr_steer", "rr_drive", "rr_translation",
+                                        "right_passive", "fr_mimic", "fr_walking", "fr_steer", "fr_drive", "fr_translation",
+                                        "mr_mimic", "mr_walking", "mr_drive", "mr_translation"};
+
+    std::string str_slip_joints[] = {"fl_slipx", "fl_slipy", "fl_slipz",
+                                    "fr_slipx", "fr_slipy", "fr_slipz",
+                                    "ml_slipx", "ml_slipy", "ml_slipz",
+                                    "mr_slipx", "mr_slipy", "mr_slipz",
+                                    "rl_slipx", "rl_slipy", "rl_slipz",
+                                    "rr_slipx", "rr_slipy", "rr_slipz"};
+
+    std::string str_contact_joints[] = {"fl_contact", "fr_contact", "ml_contact", "mr_contact", "rl_contact", "rr_contact"};
     /*****************************************/
     /** END OF EDITABLE PART FOR PARAMETERS **/
     /*****************************************/
-    std::vector<std::string> contact_points( str, str + (sizeof(str)/sizeof(std::string)));
-    std::cout<<"********* ROBOT KDL MODEL *********\n";
-    KinematicKDL robotKDL(urdf_file, contact_points, wheel_radius, _SlipDoF, _ContactDoF);
-    std::cout<<"** URDF FILE: "<<urdf_file<<"\n";
-    std::cout<<"** ROBOT MODEL_DOF: "<< robotKDL.MODEL_DOF <<"\n";
-    for (std::vector<double>::iterator it = wheel_radius.begin() ; it != wheel_radius.end(); ++it)
-        std::cout<<"** ROBOT WHEELS RADIUS: "<< *it <<"\n";
+    std::vector<std::string> contact_segments( str_contact_segments, str_contact_segments + (sizeof(str_contact_segments)/sizeof(std::string)));
+    std::vector<std::string> joint_names( str_joint_names, str_joint_names + (sizeof(str_joint_names)/sizeof(std::string)));
+    std::vector<std::string> robot_joints( str_robot_joints, str_robot_joints + (sizeof(str_robot_joints)/sizeof(std::string)));
+    std::vector<std::string> slip_joints( str_slip_joints, str_slip_joints + (sizeof(str_slip_joints)/sizeof(std::string)));
+    std::vector<std::string> contact_joints( str_contact_joints, str_contact_joints + (sizeof(str_contact_joints)/sizeof(std::string)));
+    std::cout<<"** [TEST] ROBOT KDL MODEL *********\n";
+    std::cout<<"** [TEST] URDF FILE: "<<urdf_file<<"\n";
+    KinematicKDL robotKDL(urdf_file, contact_segments, robot_joints.size(), slip_joints.size(), contact_joints.size());
+    std::cout<<"** [TEST] ROBOT MODEL_DOF: "<< robotKDL.model_dof <<"\n";
 
-    std::vector<double> joints (robotKDL.MODEL_DOF, 0);
+    std::vector<double> joint_positions (robotKDL.model_dof, 0);
     std::vector<Eigen::Affine3d> fkRobotKDL; // Vector of Forward Kinematics Transformation
     std::vector<base::Matrix6d> fkCovKDL; // Vector of Covariance matrices
 
     /** Store the values **/
-    for (register int i=0; i<static_cast<int>(robotKDL.MODEL_DOF); ++i)
+    for (register int i=0; i<static_cast<int>(robotKDL.model_dof); ++i)
     {
-        joints[i] = 0.00;
+        joint_positions[i] = 0.00;
     }
 
-    std::cout<<"** ROBOT JOINTS VALUES\n";
-    for (std::vector<double>::iterator it = joints.begin() ; it != joints.end(); ++it)
+    std::cout<<"** [TEST] ROBOT JOINTS VALUES\n";
+    for (std::vector<double>::iterator it = joint_positions.begin() ; it != joint_positions.end(); ++it)
         std::cout << ' ' << *it;
     std::cout << '\n';
 
-    std::cout<<"** ROBOT MAX CHAIN DoF: "<<robotKDL.getMaxChainDoF()<<"\n";
+    robotKDL.fkSolver(joint_positions, fkRobotKDL, fkCovKDL);
 
-    robotKDL.fkSolver(joints, fkRobotKDL, fkCovKDL);
-
-    std::cout<<"** fkRobotKDL is of size: "<<fkRobotKDL.size()<<" fkCovKDL of size: "<<fkCovKDL.size()<<"\n";
+    std::cout<<"** [TEST] fkRobotKDL is of size: "<<fkRobotKDL.size()<<" fkCovKDL of size: "<<fkCovKDL.size()<<"\n";
 
     for (register unsigned int i=0; i<fkRobotKDL.size(); ++i)
     {
-        std::cout<<"fkRobotKDL chain["<<i<<"]\n"<<fkRobotKDL[i].matrix()<<"\n";
+        std::cout<<"[TEST] fkRobotKDL chain["<<i<<"]\n"<<fkRobotKDL[i].matrix()<<"\n";
     }
 
-    std::cout<<"**\n\n******* ROBOT KDL JACOBIAN *********\n";
+    std::cout<<"**\n\n** [TEST] ROBOT KDL JACOBIAN *********\n";
     Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> JKdl;
-    JKdl.resize(6*wheel_radius.size(), robotKDL.MODEL_DOF);
+    JKdl.resize(6*contact_segments.size(), robotKDL.model_dof);
 
-    JKdl = robotKDL.jacobianSolver(joints);
+    JKdl = robotKDL.jacobianSolver(joint_names, joint_positions);
 
-    std::cout<<"** JACOBIAN KDL is of size "<<JKdl.rows()<<" x "<<JKdl.cols()<<"\n"<< JKdl <<"\n\n";
+    std::cout<<"** [TEST] JACOBIAN KDL is of size "<<JKdl.rows()<<" x "<<JKdl.cols()<<"\n"<< JKdl <<"\n\n";
+
+    /** Organized the Jacobian with the Slip and Contact Angles at the end **/
+    std::string str_motion_model_joint_names[] = {"left_passive",  "right_passive", "rear_passive", "fl_mimic", "fr_mimic", "ml_mimic", "mr_mimic", "rl_mimic", "rr_mimic",
+                                    "fl_walking", "fr_walking", "ml_walking", "mr_walking", "rl_walking", "rr_walking",
+                                    "fl_steer", "fr_steer", "rl_steer", "rr_steer",
+                                    "fl_drive", "fr_drive", "ml_drive", "mr_drive","rl_drive", "rr_drive",
+                                    "fl_translation", "fr_translation","ml_translation","mr_translation","rl_translation","rr_translation",
+                                    "fl_slipx", "fl_slipy", "fl_slipz", "fr_slipx", "fr_slipy", "fr_slipz",
+                                    "ml_slipx", "ml_slipy", "ml_slipz", "mr_slipx", "mr_slipy", "mr_slipz",
+                                    "rl_slipx", "rl_slipy", "rl_slipz","rr_slipx", "rr_slipy", "rr_slipz",
+                                    "fl_contact","fr_contact","ml_contact", "mr_contact","rl_contact","rr_contact"};
+
+    std::vector<std::string> motion_model_joint_names( str_motion_model_joint_names, str_motion_model_joint_names + (sizeof(str_motion_model_joint_names)/sizeof(std::string)));
+
+    Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> JMotion;
+    JMotion.resize(6*contact_segments.size(), robotKDL.model_dof);
+
+    robotKDL.organizeJacobian(0, motion_model_joint_names, joint_names, JKdl, JMotion);
+
+    std::cout<<"** [TEST] JACOBIAN KDL is of size "<<JMotion.rows()<<" x "<<JMotion.cols()<<"\n"<< JMotion <<"\n\n";
+
 }
+

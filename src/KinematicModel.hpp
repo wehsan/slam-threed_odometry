@@ -55,44 +55,6 @@
 
 namespace threed_odometry
 {
-    /**@class KinematicModel
-     *
-     * Kinematic Model Abstract class
-     *
-     * @param _Scalar: is the typename of your desired implementation (float, double, etc..)
-     * @param _RobotTrees: is the number of independent Trees connected to your desired Body Center.
-     *              Trees is understood as connection of kinematics chains. As an example:
-     *              <a href="http://robotik.dfki-bremen.de/en/forschung/robotersysteme/asguard-ii.html">Asguard</a>
-     *              hybrid wheels model as Trees. Therefore Asguard has 4 Trees. Each Tree has 5 open
-     *              kinematics chains, one per each foot which are potential points in contact with
-     *              the ground. The number of Trees defines the number of contact points where the robot contact the ground.
-     *
-     * @param _RobotJointDoF: Complete number of DoF in the Joint Space of your robot.This is every joint
-     *              passive or active that your robot (or the part of your robot related to odometry)
-     *              has. This is required to the Jacobian in a general form. Therefore, this would
-     *              be the part of the number of columns in the Kinematic Model Jacobian matrix.
-     *
-     * @param _SlipDoF: The number of DoF than you want to model the slip of the contact point. If you
-     *           are not interested to model slip velocity/displacement set it to zero. Otherwise,
-     *           a common slip model has 3DoF (in X an Y direction and Z rotation)
-     *
-     * @param _ContactDoF: This is the angle of contact between the ground and the contact point. If it 
-     *              is not interesting for you model (i.e: the robot moves in indoor environment)
-     *              set it to zero. Otherwise in uneven terrains normally is modeled as 1DoF along th
-     *              pitch axis. For walking robots it could have 2DoF one along the Y axis/Pitch at the feet frame
-     *              (dominant when moving forward) and another along the X axis/Roll at the feet frame
-     *              (dominant when moving sideways).
-     *
-     * Note that it is very important how you specify the number of Trees according to the contact points.
-     * It is assumed that one Tree can only have one single point of contact with the ground at the same time.
-     * Therefore, if your real/physical kinematic Tree can have more than one contact point at a time (e.g: two)
-     * the Tree needs to be split according to it (e.g: two Trees).
-     *
-     * For example, taking <a href="http://robotik.dfki-bremen.de/en/forschung/robotersysteme/asguard-ii.html">Asguard</a> wheel
-     * as an example. If we want to model the wheel as two feet can have point in contact, two Trees
-     * needs to be created in the wheel (virtually increasing the number of Trees).
-     *
-     */
     template <typename _Scalar> class KinematicModel
     {
         protected:
@@ -123,8 +85,8 @@ namespace threed_odometry
 
             /**@brief Constructor
              **/
-            KinematicModel(const int _RobotTrees, const int _SlipDoF, const int _ContactDoF)
-                            :RobotTrees(_RobotTrees), SlipDoF(_SlipDoF), ContactDoF(_ContactDoF)
+            KinematicModel(const int _RobotTrees, const int  _RobotJointDoF, const int _SlipDoF, const int _ContactDoF)
+                            :RobotTrees(_RobotTrees), RobotJointDoF(_RobotJointDoF), SlipDoF(_SlipDoF), ContactDoF(_ContactDoF)
             {
                 MAX_CHAIN_DOF = -1;
                 MODEL_DOF = -1;
@@ -189,21 +151,6 @@ namespace threed_odometry
              */
             virtual void setPointsInContact (const std::vector<int> &pointsInContact) = 0;
 
-            /**@brief Forward Kinematic
-             *
-             * Computes the Forward Kinematics. It is computed for a chain, between one coordinate frame (the base)
-             * to another coordinate frame in the chain (the tip).
-             *
-             * @param[in] chainIdx Identifier(idx) per chain. If one robot has four Trees with for example five kinematics chains per each Tree.
-             *            The idx of the first chain in the first Tree is 0. The idx for the second chain of the 
-             *            second Tree is 6 and so on.
-             * @param[in] positions vector with the joint position of the kinematic chain. Since a priori is not possible to know the number
-             *                          of DoF of the chain, the vector could have dimension MAX_CHAIN_DOF
-             * @param[out] homogeneus transformation of the Forward Kinematics
-             * @para,[out] noise covariance of the transformation.
-             */
-            virtual void fkBody2ContactPointt(const int chainIdx, const std::vector<_Scalar> &positions, Eigen::Affine3d &fkTrans, base::Matrix6d &fkCov) = 0;
-
             /**@brief Forward Kinematics Solver
              *
              * Compute the Forward Kinematics per each Tree of the robot.
@@ -224,8 +171,7 @@ namespace threed_odometry
              *
              * @return the robot Jacobian matrix.
              */
-            virtual Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> jacobianSolver(const std::vector<_Scalar> &positions) = 0;
-            //virtual Eigen::Matrix<_Scalar, 6*_RobotTrees, MODEL_DOF> jacobianSolver(const std::vector<_Scalar> &positions) = 0;
+            virtual Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> jacobianSolver(const std::vector<std::string> &names, const std::vector<_Scalar> &positions) = 0;
     };
 }
 
