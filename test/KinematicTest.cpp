@@ -48,12 +48,9 @@ BOOST_AUTO_TEST_CASE( URDFModel)
                                         "right_passive", "fr_mimic", "fr_walking", "fr_steer", "fr_drive", "fr_translation",
                                         "mr_mimic", "mr_walking", "mr_drive", "mr_translation"};
 
-    std::string str_slip_joints[] = {"fl_slipx", "fl_slipy", "fl_slipz",
-                                    "fr_slipx", "fr_slipy", "fr_slipz",
-                                    "ml_slipx", "ml_slipy", "ml_slipz",
-                                    "mr_slipx", "mr_slipy", "mr_slipz",
-                                    "rl_slipx", "rl_slipy", "rl_slipz",
-                                    "rr_slipx", "rr_slipy", "rr_slipz"};
+    std::string str_slip_joints[] = {"fl_slipx", "fr_slipx", "ml_slipx", "mr_slipx", "rl_slipx", "rr_slipx",
+                                    "fl_slipy", "fr_slipy", "ml_slipy", "mr_slipy", "rl_slipy", "rr_slipy",
+                                    "fl_slipz", "fr_slipz", "ml_slipz", "mr_slipz", "rl_slipz", "rr_slipz"};
 
     std::string str_contact_joints[] = {"fl_contact", "fr_contact", "ml_contact", "mr_contact", "rl_contact", "rr_contact"};
     /*****************************************/
@@ -107,9 +104,9 @@ BOOST_AUTO_TEST_CASE( URDFModel)
                                     "fl_steer", "fr_steer", "rl_steer", "rr_steer",
                                     "fl_drive", "fr_drive", "ml_drive", "mr_drive","rl_drive", "rr_drive",
                                     "fl_translation", "fr_translation","ml_translation","mr_translation","rl_translation","rr_translation",
-                                    "fl_slipx", "fl_slipy", "fl_slipz", "fr_slipx", "fr_slipy", "fr_slipz",
-                                    "ml_slipx", "ml_slipy", "ml_slipz", "mr_slipx", "mr_slipy", "mr_slipz",
-                                    "rl_slipx", "rl_slipy", "rl_slipz","rr_slipx", "rr_slipy", "rr_slipz",
+                                    "fl_slipx", "fr_slipx", "ml_slipx", "mr_slipx", "rl_slipx", "rr_slipx",
+                                    "fl_slipy", "fr_slipy", "ml_slipy", "mr_slipy", "rl_slipy", "rr_slipy",
+                                    "fl_slipz", "fr_slipz", "ml_slipz", "mr_slipz", "rl_slipz", "rr_slipz",
                                     "fl_contact","fr_contact","ml_contact", "mr_contact","rl_contact","rr_contact"};
 
     std::vector<std::string> motion_model_joint_names( str_motion_model_joint_names, str_motion_model_joint_names + (sizeof(str_motion_model_joint_names)/sizeof(std::string)));
