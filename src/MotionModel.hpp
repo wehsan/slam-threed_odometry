@@ -34,27 +34,11 @@
 #include <Eigen/Core> /** Core methods of Eigen implementation **/
 #include <Eigen/Dense> /** for the algebra and transformation matrices and accessing Matrixblock and corner among others**/
 #include <Eigen/Cholesky> /** For the Cholesky decomposition **/
-#include "KinematicModel.hpp" /** For the Kinematics Model abtract class **/
 
-//#define DEBUG_PRINTS_ODOMETRY_MOTION_MODEL 1 //TO-DO: Remove this. Only for testing (master branch) purpose
+#define DEBUG_PRINTS_ODOMETRY_MOTION_MODEL 1 //TO-DO: Remove this. Only for testing (master branch) purpose
 
 namespace threed_odometry
 {
-    /** A struct
-     * Struct for the contact points
-     */
-    struct TreeContactPoint
-    {
-        /** Number of contact points of the tree. It cannot be negative, zero if the Tree does not have contact **/
-        unsigned int number;
-
-        /** Point in contact between 0 and (number-1) or NO_CONTACT if the
-         * case of this tree does not have contact **/
-        int contactId;
-
-        TreeContactPoint()
-            : number(1), contactId(0) {}
-    };
 
     /**@class MotionModel
      *
@@ -91,135 +75,13 @@ namespace threed_odometry
     template <typename _Scalar>
     class MotionModel
     {
-        public:
-            /** The potential contact point of the kinematic chain  does not have contact **/
-            static const int NO_CONTACT = -1;
+        protected:
+            int number_trees, number_robot_joints, number_slip_joints, number_contact_joints;
 
         public:
-            /** Pointer to the kinematic model **/
-            typedef boost::shared_ptr< KinematicModel <_Scalar> > kinematics_ptr;
-
-            /** An Enum
-             * Store the different algorithm to find the point which are in contact.
-             * In the case of having external means to define the point in contact with the ground
-             * (i.e: map representation) this is not very important.
-             * If the point in contact is computed only using the current kinematic configuration
-             * of the robot, then it is important.
-             */
-            enum methodContactPoint
-            {
-                LOWEST_POINT  = 0,
-                COMBINATORICS  = 1
-            };
-
-            methodContactPoint contactSelection; /**< Method to select the contact points */
-            kinematics_ptr robotModel; /**< Kinematic model of a robot */
-            std::vector<Eigen::Affine3d> fkRobot; /**< Forward kinematics of the robot chains */
-            std::vector<base::Matrix6d> fkCov; /**< Uncertainty of the forward kinematics (if any) */
-            std::vector<TreeContactPoint> contactPoints; /**< Number and point in contact per each tree of the model */
+            unsigned int model_dof;
 
         protected:
-
-            /* This function is deprecated
-            bool contactPointComparison(Eigen::Affine3d fkRobot1, Eigen::Affine3d fkRobot2)
-            {
-                return fkRobot1.translation()[2] < fkRobot2.translation()[2];
-            }*/
-
-            /**@brief computes the current set of points in contact choosing the lowest point.
-             *
-             * This function uses the lowest point w.r.t the local (robot body frame) Z axis to compute
-             * the points in contact for the robot. One point per Tree.
-             * It stores the result in the contact point member of the class.
-             *
-             * @return void
-             */
-            void lowestPointInContact()
-            {
-                register int j = 0;
-
-                /** For all the trees of the model **/
-                for (std::vector<TreeContactPoint>::iterator it = contactPoints.begin() ; it != contactPoints.end(); it++)
-                {
-                    /** More than one contact point per this tree **/
-                    if ((*it).number > 1)
-                    {
-                        double zdistance = 0.00;
-                        for (register unsigned int i=0; i<(*it).number; ++i)
-                        {
-                            if (zdistance > fkRobot[j+i].translation()[2])
-                            {
-                                zdistance = fkRobot[j+i].translation()[2];
-                                (*it).contactId = i;
-                            }
-                        }
-                    }
-                    else if ((*it).number == 1) /** If there is only one contact point then it is that one making contact **/
-                    {
-                        contactPoints[j].contactId = 0;
-                    }
-                    else /** This tree does not have contact **/
-                    {
-                        contactPoints[j].contactId = NO_CONTACT;
-                    }
-
-                    j = j+(*it).number;
-                }
-
-                #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                std::cout<<"[MOTION_MODEL] Selected Points in Contact:";
-                for (std::vector<TreeContactPoint>::iterator it = contactPoints.begin() ; it != contactPoints.end(); it++)
-                {
-                    std::cout<<" "<<(*it).contactId;
-                }
-                std::cout<<"\n";
-                #endif
-
-
-                return;
-            }
-
-            /**@brief Computes the points in contact using combinatorics
-             *
-             * Probabilistic combinatoric method to compute the points in
-             * contact for the robot. One point in contact per Tree.
-             *
-             * TO-DO
-             *
-             * @return void
-             */
-            void combinatoricsPointInContact()
-            {
-                return;
-            }
-
-            /**@brief this method computes the point in contact depending on the method.
-             *
-             * @param method enum variable with the desired method to compute the points in contact
-             *
-             */
-            void selectPointsInContact(MotionModel::methodContactPoint method)
-            {
-
-                /** Select the method for the points in contact **/
-                if (method == LOWEST_POINT)
-                {
-                    #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                    std::cout<< "[MOTION_MODEL SelectPoints] Lowest Points method\n";
-                    #endif
-                    this->lowestPointInContact();
-                }
-                else if (method == COMBINATORICS)
-                {
-                    #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                    std::cout<< "[MOTION_MODEL SelectPoints] Combinatorics Points method\n";
-                    #endif
-
-                    this->combinatoricsPointInContact();
-                }
-
-               return;
-            }
 
             /**@brief Forms the Navigation Equations for the navigation kinematics
              *
@@ -266,43 +128,37 @@ namespace threed_odometry
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &Weight)
             {
                 Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> spareI;
-                spareI.resize(6*robotModel->getNumberOfTrees(), 6);
+                spareI.resize(6*this->number_trees, 6);
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 std::cout<<"[MOTION_MODEL] navEquations\n";
                 #endif
 
                 /** Compute the composite rover equation matrix I **/
-                for (register int i=0; i<robotModel->getNumberOfTrees(); ++i)
+                for (register int i=0; i<this->number_trees; ++i)
                     spareI.block(i*6, 0, 6, 6) = Eigen::Matrix <_Scalar, 6, 6>::Identity();
 
                 /** Form the unknownA matrix **/
-                unknownA.block(0, 0, 6*robotModel->getNumberOfTrees(), 3) = spareI.block(0, 0, 6*robotModel->getNumberOfTrees(), 3);//Linear Velocities
+                unknownA.block(0, 0, 6*this->number_trees, 3) = spareI.block(0, 0, 6*this->number_trees, 3);//Linear Velocities
 
-                /** Form the unknownx **/
+                /** Form the unknownx vector **/
                 unknownx.block(0, 0, 3, 1) = cartesianVelocities.block(0, 0, 3, 1);
 
                 /** Non-holonomic constraint Slip vector **/
-                for (register int i=0; i<robotModel->getNumberOfTrees(); ++i)
-                {
-                    unknownA.col(3+i) = -J.col(robotModel->getRobotJointDoF()+(robotModel->getSlipDoF()*(i+1)-1));
-                    unknownx[3+i] = modelVelocities[robotModel->getRobotJointDoF()+(robotModel->getSlipDoF()*(i+1)-1)];
-                }
+                unknownA.block(0, 3, 6*this->number_trees, this->number_trees) = -J.block(0, this->number_robot_joints+this->number_slip_joints-(this->number_trees), 6*this->number_trees, this->number_trees);
+                unknownx.block(3, 0, this->number_trees, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints-(this->number_trees), 0, this->number_trees, 1);
 
                 /** Contact angles per each Tree **/
-                for (register int i=0; i<(robotModel->getNumberOfTrees()*robotModel->getContactDoF()); ++i)
-                {
-                    unknownA.col(3+robotModel->getNumberOfTrees()+i) = -J.col(robotModel->getRobotJointDoF()+(robotModel->getNumberOfTrees()*robotModel->getSlipDoF())+i);
-                    unknownx[3+robotModel->getNumberOfTrees()+i] = modelVelocities[robotModel->getRobotJointDoF()+(robotModel->getNumberOfTrees()*robotModel->getSlipDoF())+i];
-                }
+                unknownA.block(0, 3+this->number_trees, 6*this->number_trees, this->number_contact_joints) = -J.block(0, this->number_robot_joints+this->number_slip_joints, 6*this->number_trees, this->number_contact_joints);
+                unknownx.block(3+this->number_trees, 0, this->number_contact_joints, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints, 0, this->number_contact_joints, 1);
 
                 /** Form the knownB matrix **/
-                knownB.block(0, 0, 6* robotModel->getNumberOfTrees(), 3) = -spareI.block(0, 3, 6*robotModel->getNumberOfTrees(), 3); //Angular velocities
-                knownB.block(0, 3, 6* robotModel->getNumberOfTrees(), robotModel->getRobotJointDoF()) = J.block(0, 0, 6*robotModel->getNumberOfTrees(), robotModel->getRobotJointDoF());
+                knownB.block(0, 0, 6* this->number_trees, 3) = -spareI.block(0, 3, 6*this->number_trees, 3); //Angular velocities
+                knownB.block(0, 3, 6* this->number_trees, this->number_robot_joints) = J.block(0, 0, 6*this->number_trees, this->number_robot_joints);
 
-                /** Form the knowny **/
+                /** Form the knowny vector **/
                 knowny.block(0, 0, 3, 1) = cartesianVelocities.template block<3, 1> (3,0);
-                knowny.block(3, 0, robotModel->getRobotJointDoF(), 1) = modelVelocities.block(0, 0, robotModel->getRobotJointDoF(), 1);
+                knowny.block(3, 0, this->number_robot_joints, 1) = modelVelocities.block(0, 0, this->number_robot_joints, 1);
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 std::cout<< "[MOTION_MODEL] spareI is of size "<<spareI.rows()<<"x"<<spareI.cols()<<"\n";
@@ -329,68 +185,23 @@ namespace threed_odometry
              * @param[in] pointer to the object with the Kinematic Model of the robot.
              *
              */
-            MotionModel(bool &status, MotionModel::methodContactPoint method,  kinematics_ptr robotModel)
+            MotionModel (const int _number_trees, const int _number_robot_joints, const int _number_slip_joints, const int _number_contact_joints):
+                            number_trees(_number_trees),
+                            number_robot_joints(_number_robot_joints),
+                            number_slip_joints(_number_slip_joints),
+                            number_contact_joints(_number_contact_joints)
             {
-                std::vector<unsigned int> numberContactPoints;
-                numberContactPoints.resize(robotModel->getNumberOfTrees());
-                std::fill(numberContactPoints.begin(), numberContactPoints.end(), 0);
+                this->model_dof = number_robot_joints + number_slip_joints + number_contact_joints;
 
-                /** Size the contactPoints variable **/
-                contactPoints.resize (robotModel->getNumberOfTrees());
-
-                /** Assign the robot model **/
-                this->robotModel = robotModel;
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                std::cout<<"[MOTION_MODEL] Constructor\n";
+                std::cout<<"[MOTION_MODEL] Constructor. Model DoF:"<<this->model_dof<<"\n";
                 #endif
 
-                /** Know the number of contact points per tree **/
-                robotModel->contactPointsPerTree(numberContactPoints);
-
-                /** Assign the type of method to select the contact points actually in contact **/
-                this->contactSelection = method;
-
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                std::cout<<"[MOTION_MODEL] Get number of trees "<<robotModel->getNumberOfTrees()<<"\n";
-                #endif
-
-                if ((robotModel->getNumberOfTrees() == static_cast<int>(numberContactPoints.size())) &&(numberContactPoints.size() == robotModel->getNumberOfTrees()))
-                {
-                    /** Fill the internal contact point variable **/
-                    for (register unsigned int i=0; i<numberContactPoints.size(); ++i)
-                    {
-                        contactPoints[i].number = numberContactPoints[i]; //!Number of contact points
-                        contactPoints[i].contactId = 0; //! By default set the contact point zero.
-                    }
-
-                    /** Print information message **/
-                    LOG_INFO("[MOTION_MODEL] Created Motion Model using %s Robot Kinematics implementation\n", this->robotModel->name().c_str());
-                    LOG_INFO("[MOTION_MODEL] %s has %d independent kinematic trees.\n", this->robotModel->name().c_str(), this->robotModel->getNumberOfTrees());
-                    status = true;
-                }
-                else
-                {
-                    LOG_ERROR("[MOTION_MODEL] Malfunction of the MotionModel. WRONG number of template parameters\n");
-                    status = false;
-                }
-
-                #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                std::cout<<"[MOTION_MODEL] contactPoints contains: ";
-                for (std::vector<TreeContactPoint>::iterator it = contactPoints.begin() ; it != contactPoints.end(); it++)
-                {
-                    std::cout<<" number: "<<(*it).number<<" contactId: "<<(*it).contactId;
-                }
-
                 std::cout<<"\n[MOTION_MODEL] **** END ****\n";
                 #endif
 
                 return;
-            }
-
-            /**@brief Default constructor
-             */
-            MotionModel()
-            {
             }
 
 
@@ -399,81 +210,6 @@ namespace threed_odometry
             ~MotionModel()
             {
             }
-
-            /**@brief Updates the Kinematic Model of the robot.
-             *
-             * It computes the Forward Kinematics of the robot and update the points in contacts.
-             *
-             * @param[in] modelPositions, the vector with the model positions (joints, slip, contact angle).
-             */
-            void updateKinematics (const Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelPositions)
-            {
-                register int i=0;
-                std::vector<_Scalar> vectorPositions;
-                vectorPositions.resize(robotModel->getModelDoF());
-                std::fill(vectorPositions.begin(), vectorPositions.end(), 0);
-                std::vector<int> contactId;
-                contactId.resize(robotModel->getNumberOfTrees());
-                std::fill(contactId.begin(), contactId.end(), 0);
-
-                /** Assert vectors sizes **/
-                assert(modelPositions.size() == vectorPositions.size());
-
-                /** Copy Eigen to vector **/
-                Eigen::Map <Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> > (&(vectorPositions[0]), robotModel->getModelDoF()) = modelPositions;
-
-                /** Solve the forward kinematics for the complete Robot (all the chains)**/
-                robotModel->fkSolver(vectorPositions, fkRobot, fkCov);
-
-                /** Select the contact point **/
-                this->selectPointsInContact (this->contactSelection);
-
-                /** Set the contact point to the kinematic model **/
-                for (std::vector<TreeContactPoint>::iterator it = contactPoints.begin() ; it != contactPoints.end(); it++)
-                {
-                    contactId[i] = (*it).contactId;
-                    i++;
-                }
-                robotModel->setPointsInContact(contactId);
-
-                return;
-            }
-
-
-            /**@brief Returns the kinematic of the robot
-             *
-             * @param[out] robot forward kinematics as a vector of affine transformations (one per Tree)
-             * @param[out] covariance of the transformation.
-             */
-            inline virtual void getKinematics (std::vector<Eigen::Affine3d> &currentFkRobot, std::vector<base::Matrix6d> &currentFkCov)
-            {
-                currentFkRobot = this->fkRobot;
-                currentFkCov = this->fkCov;
-
-                return;
-            }
-
-            /**@brief Return the current points in contact
-             *
-             * @return vector of points in contact for the robot (point per Tree)
-             * in the same order that the Trees are specify.
-             */
-            virtual std::vector< int > getPointsInContact ()
-            {
-                register int i=0;
-                std::vector<int> contactId;
-                contactId.resize(robotModel->getNumberOfTrees());
-                std::fill(contactId.begin(), contactId.end(), 0);
-
-                for (std::vector<TreeContactPoint>::iterator it = contactPoints.begin() ; it != contactPoints.end(); it++)
-                {
-                    contactId[i] = (*it).contactId;
-                    i++;
-                }
-
-                return contactId;
-            }
-
 
             /**@bief Solver for the Navigation equations
              *
@@ -493,26 +229,25 @@ namespace threed_odometry
              * @param[in] Weight, trees Weighting matrix (which robot's tree has more weight to the computation).
              */
             virtual double navSolver(const Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelPositions,
-                                            Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
-                                            Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelVelocities,
-                                            Eigen::Matrix <_Scalar, 6, 6> &cartesianVelCov,
-                                            Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &modelVelCov,
-                                            Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight)
+                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelVelocities,
+                                    const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &J,
+                                    Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
+                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &modelVelCov,
+                                    Eigen::Matrix <_Scalar, 6, 6> &cartesianVelCov,
+                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight)
             {
                 double normalizedError = std::numeric_limits<double>::quiet_NaN(); //solution error of the Least-Squares
                 std::vector<_Scalar> vectorPositions; // model positions in std_vector form
-                vectorPositions.resize(robotModel->getModelDoF());
+                vectorPositions.resize(model_dof);
                 std::fill(vectorPositions.begin(), vectorPositions.end(), 0);
-                Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> J; // Robot Jacobian
-                J.resize(6*robotModel->getNumberOfTrees(), robotModel->getModelDoF());
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> unknownA; // Nav non-sensed values matrix
-                unknownA.resize(6*robotModel->getNumberOfTrees(), 3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF()));
+                unknownA.resize(6*this->number_trees, 3+this->number_trees+this->number_contact_joints);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> unknownx; // Nav non-sensed values vector
-                unknownx.resize(3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF()), 1);
+                unknownx.resize(3+this->number_trees+this->number_contact_joints, 1);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> knownB; // Nav sensed values matrix
-                knownB.resize(6*robotModel->getNumberOfTrees(), 3+robotModel->getRobotJointDoF());
+                knownB.resize(6*this->number_trees, 3+this->number_robot_joints);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knowny; // Nav sensed values vector
-                knowny.resize(3+robotModel->getRobotJointDoF(), 1);
+                knowny.resize(3+this->number_robot_joints, 1);
 
                 /** Initialize  variables **/
                 unknownA.setZero(); unknownx.setZero();
@@ -531,14 +266,11 @@ namespace threed_odometry
                 assert(modelPositions.size() == modelVelocities.size());
                 assert(modelVelCov.cols() == modelVelCov.rows());
                 assert(modelVelCov.cols() == modelVelocities.size());
-                assert(Weight.cols() == 6*robotModel->getNumberOfTrees());
-                assert(Weight.rows() == 6*robotModel->getNumberOfTrees());
+                assert(Weight.cols() == 6*this->number_trees);
+                assert(Weight.rows() == 6*this->number_trees);
 
                 /** Copy Eigen to vector **/
-                Eigen::Map <Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> > (&(vectorPositions[0]), robotModel->getModelDoF()) = modelPositions;
-
-                /** Solve the Robot Jacobian Matrix **/
-                J = robotModel->jacobianSolver (vectorPositions);
+                Eigen::Map <Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> > (&(vectorPositions[0]), model_dof) = modelPositions;
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 std::cout<< "[MOTION_MODEL] J is of size "<<J.rows()<<"x"<<J.cols()<<"\n";
@@ -551,13 +283,13 @@ namespace threed_odometry
 
                 /** Solve the Motion Model by Least-Squares (navigation kinematics) **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knownb;
-                knownb.resize(6*robotModel->getNumberOfTrees(), 1);
+                knownb.resize(6*this->number_trees, 1);
                 knownb = knownB*knowny;
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 /** DEBUG OUTPUT **/
                 Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> Conj;
-                Conj.resize(6*robotModel->getNumberOfTrees(), 3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF())+1);
+                Conj.resize(6*this->number_trees, 3+this->number_trees+this->number_contact_joints+1);
 
                 Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompA(unknownA);
                 std::cout << "[MOTION_MODEL] The rank of A is " << lu_decompA.rank() << std::endl;
@@ -565,8 +297,8 @@ namespace threed_odometry
                 Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompB(knownB);
                 std::cout << "[MOTION_MODEL] The rank of B is " << lu_decompB.rank() << std::endl;
 
-                Conj.block(0, 0, 6*robotModel->getNumberOfTrees(), 3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF())) = unknownA;
-                Conj.block(0, 3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF()), 6*robotModel->getNumberOfTrees(), 1) = knownb;
+                Conj.block(0, 0, 6*this->number_trees, 3+this->number_trees+this->number_contact_joints) = unknownA;
+                Conj.block(0, 3+this->number_trees+this->number_contact_joints, 6*this->number_trees, 1) = knownb;
                 Eigen::FullPivLU< Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompConj(Conj);
                 std::cout << "[MOTION_MODEL] The rank of A|B*y is " << lu_decompConj.rank() << std::endl;
                 std::cout << "[MOTION_MODEL] Pseudoinverse of A\n" << (unknownA.transpose() * Weight * unknownA).inverse() << std::endl;
@@ -583,10 +315,10 @@ namespace threed_odometry
 
                 /** Error covariance matrix **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> errorCov;
-                errorCov.resize(6*robotModel->getNumberOfTrees(), 6*robotModel->getNumberOfTrees());
+                errorCov.resize(6*this->number_trees, 6*this->number_trees);
                 errorCov = (unknownA*unknownx - knownb).asDiagonal(); errorCov *= errorCov;// L-S error covariance
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> uncertaintyCov; // noise cov
-                uncertaintyCov.resize(3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF()), 3+robotModel->getNumberOfTrees()+(robotModel->getNumberOfTrees()*robotModel->getContactDoF()));
+                uncertaintyCov.resize(3+this->number_trees+this->number_contact_joints, 3+this->number_trees+this->number_contact_joints);
                 uncertaintyCov = (unknownA.transpose() * errorCov.inverse() * unknownA).inverse(); // Observer
                 uncertaintyCov = 0.5*(uncertaintyCov + uncertaintyCov.transpose());// Guarantee symmetry
 
@@ -598,24 +330,21 @@ namespace threed_odometry
                 if (cartesianVelCov.block(3, 3, 3, 3) == Eigen::Matrix3d::Zero())
                 {
                     /** There is one per each _RobotTrees. errorCov is a 6*_RobotTrees x 6*_RobotTrees matrix dimension **/
-                    for (register size_t i=0; i<robotModel->getNumberOfTrees(); ++i)
+                    for (register size_t i=0; i<this->number_trees; ++i)
                     {
                         cartesianVelCov.block(3, 3, 3, 3) += Weight.block(3+(6*i), 3+(6*i), 3, 3) * errorCov.block(3+(6*i),3+(6*i), 3, 3);//Angular Velocities noise
                     }
                 }
 
                 /** Non-holonomic constraint Slip vector **/
-                for (register int i=0; i<robotModel->getNumberOfTrees(); ++i)
-                {
-                    modelVelocities[robotModel->getRobotJointDoF()+(robotModel->getSlipDoF()*(i+1)-1)] = unknownx[3+i];
-                    modelVelCov.col(robotModel->getRobotJointDoF()+(robotModel->getSlipDoF()*(i+1)-1))[robotModel->getRobotJointDoF()+(robotModel->getSlipDoF()*(i+1)-1)] = uncertaintyCov.col(3+i)[3+i];//pseudoInvUnknownA.col(3+i)[3+i]; For the time being set the error to the error in the estimation
-                }
+                modelVelocities.block(this->number_robot_joints+this->number_slip_joints-(this->number_trees), 0, this->number_trees, 1) = unknownx.block(3, 0, this->number_trees, 1);
+                modelVelCov.block(this->number_robot_joints+this->number_slip_joints-(this->number_trees), this->number_robot_joints+this->number_slip_joints-(this->number_trees), this->number_trees, this->number_trees) = uncertaintyCov.block(3, 3, this->number_trees, this->number_trees);//pseudoInvUnknownA.col(3+i)[3+i]; For the time being set the error to the error in the estimation
 
                 /** Contact angles per each Tree **/
-                for (register int i=0; i<(robotModel->getNumberOfTrees()*robotModel->getContactDoF()); ++i)
+                for (register int i=0; i<this->number_contact_joints; ++i)
                 {
-                    modelVelocities[robotModel->getRobotJointDoF()+(robotModel->getNumberOfTrees()*robotModel->getSlipDoF())+i] = unknownx[3+robotModel->getNumberOfTrees()+i];
-                    modelVelCov.col(robotModel->getRobotJointDoF()+(robotModel->getNumberOfTrees()*robotModel->getSlipDoF())+i)[robotModel->getRobotJointDoF()+(robotModel->getNumberOfTrees()*robotModel->getSlipDoF())+i] = uncertaintyCov.col(3+robotModel->getNumberOfTrees()+i)[3+robotModel->getNumberOfTrees()+i];//pseudoInvUnknownA.col(3+_RobotTrees+i)[3+_RobotTrees+i];
+                    modelVelocities[this->number_robot_joints+this->number_slip_joints+i] = unknownx[3+this->number_trees+i];
+                    modelVelCov.col(this->number_robot_joints+this->number_slip_joints+i)[this->number_robot_joints+this->number_slip_joints+i] = uncertaintyCov.col(3+this->number_trees+i)[3+this->number_trees+i];//pseudoInvUnknownA.col(3+_RobotTrees+i)[3+_RobotTrees+i];
                 }
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
