@@ -44,10 +44,12 @@ KinematicKDL::KinematicKDL (const std::string &urdf_file, const std::vector<std:
     this->contact_points = contact_points;
     this->model_dof = number_robot_joints + number_slip_joints + number_contact_joints;
 
-    std::cout<<"number_robot_joints: "<<this->number_robot_joints<<"\n";
-    std::cout<<"number_slip_joints: "<<this->number_slip_joints<<"\n";
-    std::cout<<"number_contact_joints: "<<this->number_contact_joints<<"\n";
-    std::cout<<"model_dof: "<<this->model_dof;
+    #ifdef DEBUG_PRINTS
+    std::cout<<"[KDL_MODEL] number_robot_joints: "<<this->number_robot_joints<<"\n";
+    std::cout<<"[KDL_MODEL] number_slip_joints: "<<this->number_slip_joints<<"\n";
+    std::cout<<"[KDL_MODEL] number_contact_joints: "<<this->number_contact_joints<<"\n";
+    std::cout<<"[KDL_MODEL] model_dof: "<<this->model_dof<<"\n";
+    #endif
 
 
     /** Get root link*/
