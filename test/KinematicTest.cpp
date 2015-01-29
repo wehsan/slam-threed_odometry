@@ -32,7 +32,9 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /***************************************/
 
     /** VALUES FOR EXOTER **/
-    std::string str_contact_segments[] = {"fl_segment_slipz", "fr_segment_slipz", "ml_segment_slipz", "mr_segment_slipz", "rl_segment_slipz", "rr_segment_slipz"};
+    std::string str_contact_point_segments[] = {"fl_segment_slipz", "fr_segment_slipz", "ml_segment_slipz", "mr_segment_slipz", "rl_segment_slipz", "rr_segment_slipz"};
+
+    std::string str_contact_angle_segments[] = {"fl_ground", "fr_ground", "ml_ground", "mr_ground", "rl_ground", "rr_ground"};
 
     std::string str_joint_names[] = {"left_passive", "fl_mimic", "fl_walking", "fl_steer", "fl_drive", "fl_contact", "fl_translation", "fl_slipx", "fl_slipy", "fl_slipz",
                                         "ml_mimic", "ml_walking", "ml_drive", "ml_contact", "ml_translation", "ml_slipx", "ml_slipy", "ml_slipz",
@@ -56,14 +58,15 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     /*****************************************/
     /** END OF EDITABLE PART FOR PARAMETERS **/
     /*****************************************/
-    std::vector<std::string> contact_segments( str_contact_segments, str_contact_segments + (sizeof(str_contact_segments)/sizeof(std::string)));
+    std::vector<std::string> contact_points( str_contact_point_segments, str_contact_point_segments + (sizeof(str_contact_point_segments)/sizeof(std::string)));
+    std::vector<std::string> contact_angles( str_contact_angle_segments, str_contact_angle_segments + (sizeof(str_contact_angle_segments)/sizeof(std::string)));
     std::vector<std::string> joint_names( str_joint_names, str_joint_names + (sizeof(str_joint_names)/sizeof(std::string)));
     std::vector<std::string> robot_joints( str_robot_joints, str_robot_joints + (sizeof(str_robot_joints)/sizeof(std::string)));
     std::vector<std::string> slip_joints( str_slip_joints, str_slip_joints + (sizeof(str_slip_joints)/sizeof(std::string)));
     std::vector<std::string> contact_joints( str_contact_joints, str_contact_joints + (sizeof(str_contact_joints)/sizeof(std::string)));
     std::cout<<"** [TEST] ROBOT KDL MODEL *********\n";
     std::cout<<"** [TEST] URDF FILE: "<<urdf_file<<"\n";
-    KinematicKDL robotKDL(urdf_file, contact_segments, robot_joints.size(), slip_joints.size(), contact_joints.size());
+    KinematicKDL robotKDL(urdf_file, contact_points, contact_angles, robot_joints.size(), slip_joints.size(), contact_joints.size());
     std::cout<<"** [TEST] ROBOT MODEL_DOF: "<< robotKDL.model_dof <<"\n";
 
     std::vector<double> joint_positions (robotKDL.model_dof, 0);
@@ -76,12 +79,15 @@ BOOST_AUTO_TEST_CASE( URDFModel)
         joint_positions[i] = 0.00;
     }
 
+    //joint_positions[3] = 90.00 * D2R; //FL Steer joint (ONLY EXOTER)
+    //joint_positions[40] = 90.00 * D2R; //FR Steer joint (ONLY EXOTER)
+
     std::cout<<"** [TEST] ROBOT JOINTS VALUES\n";
     for (std::vector<double>::iterator it = joint_positions.begin() ; it != joint_positions.end(); ++it)
         std::cout << ' ' << *it;
     std::cout << '\n';
 
-    robotKDL.fkSolver(joint_positions, fkRobotKDL, fkCovKDL);
+    robotKDL.fkSolver(joint_positions, contact_points, fkRobotKDL, fkCovKDL);
 
     std::cout<<"** [TEST] fkRobotKDL is of size: "<<fkRobotKDL.size()<<" fkCovKDL of size: "<<fkCovKDL.size()<<"\n";
 
@@ -92,13 +98,15 @@ BOOST_AUTO_TEST_CASE( URDFModel)
 
     std::cout<<"**\n\n** [TEST] ROBOT KDL JACOBIAN *********\n";
     Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> JKdl;
-    JKdl.resize(6*contact_segments.size(), robotKDL.model_dof);
+    JKdl.resize(6*contact_points.size(), robotKDL.model_dof);
 
     JKdl = robotKDL.jacobianSolver(joint_names, joint_positions);
 
     std::cout<<"** [TEST] JACOBIAN KDL is of size "<<JKdl.rows()<<" x "<<JKdl.cols()<<"\n"<< JKdl <<"\n\n";
 
-    /** Organized the Jacobian with the Slip and Contact Angles at the end **/
+    /***********************************************************************************************************/
+
+    /** Organized the Jacobian with the Slip and Contact Angles at the end (ONLY EXOTER) **/
     std::string str_motion_model_joint_names[] = {"left_passive",  "right_passive", "rear_passive", "fl_mimic", "fr_mimic", "ml_mimic", "mr_mimic", "rl_mimic", "rr_mimic",
                                     "fl_walking", "fr_walking", "ml_walking", "mr_walking", "rl_walking", "rr_walking",
                                     "fl_steer", "fr_steer", "rl_steer", "rr_steer",
@@ -112,7 +120,7 @@ BOOST_AUTO_TEST_CASE( URDFModel)
     std::vector<std::string> motion_model_joint_names( str_motion_model_joint_names, str_motion_model_joint_names + (sizeof(str_motion_model_joint_names)/sizeof(std::string)));
 
     Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> JMotion;
-    JMotion.resize(6*contact_segments.size(), robotKDL.model_dof);
+    JMotion.resize(6*contact_points.size(), robotKDL.model_dof);
 
     robotKDL.organizeJacobian(0, motion_model_joint_names, joint_names, JKdl, JMotion);
 

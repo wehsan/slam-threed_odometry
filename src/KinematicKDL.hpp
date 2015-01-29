@@ -3,10 +3,10 @@
 * This class has the primitive methods for the Forward kinematics and Wheel Jacobian.
 * First computes the forward kinematics in order to have afterwards the wheel Jacobians using KDL.
 *
-* It read a URDF file to create KDL trees using the kdl_parse.
+* It reads a URDF file to create KDL Chains using the kdl_parse.
 *
 * @author Javier Hidalgo Carrio | DFKI RIC Bremen | javier.hidalgo_carrio@dfki.de
-* @date October 2013.
+* @date December 2014.
 * @version 1.0.
 */
 
@@ -51,22 +51,25 @@ namespace threed_odometry
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW //Structures having Eigen members
 
     protected:
-        KDL::Tree tree; /** There are as many chains as number of _RobotTrees **/
+        KDL::Tree tree; /** There are as many chains in the tree as number of contact points **/
         std::string model_name; /** Name of the model class **/
-        std::vector<std::string> contact_points; /** Number and segment names of contact points **/
-        int number_robot_joints, number_slip_joints, number_contact_joints;
+        std::vector<KDL::Chain> ichains; /** Kinematics chains **/
+        std::vector< std::vector<std::string> > ichains_joint_names; /** Kinematics chains **/
+        std::vector<std::string> contact_point_segments; /** Number and segment names of contact points **/
+        std::vector<std::string> contact_angle_segments; /** Number and segment names of contact angles **/
+        int number_robot_joints, number_slip_joints, number_contact_joints; /** Number of joints per each type **/
 
     public:
-        unsigned int model_dof;
+        unsigned int model_dof; /** Complete robot model DoF **/
 
 
     public:
-        KinematicKDL (const std::string &urdf_file, const std::vector<std::string> &contact_points, 
-                const int _number_robot_joints, const int _number_slip_joints, const int _number_contact_joints);
+        KinematicKDL (const std::string &urdf_file, const std::vector<std::string> &_contact_points,
+                const std::vector<std::string> &contact_angles, const int _number_robot_joints, const int _number_slip_joints, const int _number_contact_joints);
         ~KinematicKDL();
 
         std::string getName();
-        void fkSolver(const std::vector<double> &positions, std::vector<Eigen::Affine3d> &fkTrans, std::vector<base::Matrix6d> &fkCov);
+        void fkSolver(const std::vector<double> &positions, const std::vector<std::string> &tip_names, std::vector<Eigen::Affine3d> &fkTrans, std::vector<base::Matrix6d> &fkCov);
         Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> jacobianSolver(const std::vector<std::string> &names, const std::vector<double> &positions);
         void unpackJoints(const std::vector<std::string>& joint_names, const std::vector<double>& joint_positions,
                                 const std::vector<std::string>& involved_joints, KDL::JntArray& joint_array);
