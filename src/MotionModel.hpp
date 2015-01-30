@@ -98,7 +98,6 @@ namespace threed_odometry
              * @param[out] unknownx in the vector of unknow quantities.
              * @param[out] knownB is the matrix of know quantities
              * @param[out] knowny is the matrix of know quantities
-             * @param[out] Weight matrix with the inverse of the noise for the
              * equation (Weighted Least-Squares).
              */
             inline void navEquations(const Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
@@ -109,8 +108,7 @@ namespace threed_odometry
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &unknownA,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &unknownx,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &knownB,
-                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &knowny,
-                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &Weight)
+                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &knowny)
             {
                 Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> spareI;
                 spareI.resize(6*this->number_chains, 6);
@@ -152,8 +150,6 @@ namespace threed_odometry
                 std::cout<< "[MOTION_MODEL] The unknownA matrix:\n" << unknownA << std::endl;
                 std::cout<< "[MOTION_MODEL] knownB is of size "<<knownB.rows()<<"x"<<knownB.cols()<<"\n";
                 std::cout<< "[MOTION_MODEL] The knownB matrix:\n" << knownB << std::endl;
-                std::cout<< "[MOTION_MODEL] Weight is of size "<<Weight.rows()<<"x"<<Weight.cols()<<"\n";
-                std::cout<< "[MOTION_MODEL] The Weight matrix:\n" << Weight << std::endl;
                 #endif
 
                 return;
@@ -234,7 +230,7 @@ namespace threed_odometry
                                     Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &modelVelCov,
                                     Eigen::Matrix <_Scalar, 6, 6> &cartesianVelCov,
-                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight)
+                                    const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight)
             {
                 double normalizedError = std::numeric_limits<double>::quiet_NaN(); //solution error of the Least-Squares
                 std::vector<_Scalar> vectorPositions; // model positions in std_vector form
@@ -273,13 +269,15 @@ namespace threed_odometry
                 Eigen::Map <Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> > (&(vectorPositions[0]), model_dof) = modelPositions;
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
+                std::cout<< "[MOTION_MODEL] Weight is of size "<<Weight.rows()<<"x"<<Weight.cols()<<"\n";
+                std::cout<< "[MOTION_MODEL] The Weight matrix:\n" << Weight << std::endl;
                 std::cout<< "[MOTION_MODEL] J is of size "<<J.rows()<<"x"<<J.cols()<<"\n";
                 std::cout<< "[MOTION_MODEL] The J matrix \n" << J << std::endl;
                 #endif
 
                 /** Form the Composite Navigation Equations and Noise Covariance **/
                 this->navEquations (cartesianVelocities, modelVelocities, J,
-                        cartesianVelCov, modelVelCov, unknownA, unknownx, knownB, knowny, Weight);
+                        cartesianVelCov, modelVelCov, unknownA, unknownx, knownB, knowny);
 
                 /** Solve the Motion Model by Least-Squares (navigation kinematics) **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knownb;
