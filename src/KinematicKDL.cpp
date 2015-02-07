@@ -101,8 +101,7 @@ KinematicKDL::KinematicKDL (const std::string &urdf_file, const std::vector<std:
             if(segment.getJoint().getType() == KDL::Joint::None)
             {
                 LOG_DEBUG("Skipping joint %s of chain %s. Joint is fixed.",
-                          jname.c_str(),
-                          chain_names_[i].c_str());
+                          jname.c_str(), segment.getName().c_str());
                 continue;
             }
             #ifdef DEBUG_PRINTS
