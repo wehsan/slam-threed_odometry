@@ -71,8 +71,9 @@ namespace threed_odometry
             /**@brief Forms the Navigation Equations for the navigation kinematics
              *
              * It assumes that known quantities are angular rotations
-             * (Cartesian) and joint velocities.  non-slip in the X and Y axis.
-             * Only slip in z-axis (non-holonomic constrain) The unknown
+             * (Cartesian), joint velocities and contact angles (depending on
+             * the known_contact_angles flag). There is non-slip in the X and Y
+             * axis.  Only slip in z-axis (non-holonomic constrain) The unknown
              * quantities are position of the robot in Cartesian, the contact
              * angle and the z value of the slip vector.  The system of
              * equations is unknownA * unknownx = knownB * knowny The
@@ -108,7 +109,8 @@ namespace threed_odometry
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &unknownA,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &unknownx,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &knownB,
-                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &knowny)
+                                    Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &knowny,
+                                    bool known_contact_angles = false)
             {
                 Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> spareI;
                 spareI.resize(6*this->number_chains, 6);
@@ -131,17 +133,27 @@ namespace threed_odometry
                 unknownA.block(0, 3, 6*this->number_chains, this->number_chains) = -J.block(0, this->number_robot_joints+this->number_slip_joints-(this->number_chains), 6*this->number_chains, this->number_chains);
                 unknownx.block(3, 0, this->number_chains, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints-(this->number_chains), 0, this->number_chains, 1);
 
-                /** Contact angles per each Tree **/
-                unknownA.block(0, 3+this->number_chains, 6*this->number_chains, this->number_contact_joints) = -J.block(0, this->number_robot_joints+this->number_slip_joints, 6*this->number_chains, this->number_contact_joints);
-                unknownx.block(3+this->number_chains, 0, this->number_contact_joints, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints, 0, this->number_contact_joints, 1);
+                /** Contact angles per each Tree in the unknown par of the system **/
+                if (known_contact_angles == false)
+                {
+                    unknownA.block(0, 3+this->number_chains, 6*this->number_chains, this->number_contact_joints) = -J.block(0, this->number_robot_joints+this->number_slip_joints, 6*this->number_chains, this->number_contact_joints);
+                    unknownx.block(3+this->number_chains, 0, this->number_contact_joints, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints, 0, this->number_contact_joints, 1);
+                }
 
                 /** Form the knownB matrix **/
-                knownB.block(0, 0, 6* this->number_chains, 3) = -spareI.block(0, 3, 6*this->number_chains, 3); //Angular velocities
-                knownB.block(0, 3, 6* this->number_chains, this->number_robot_joints) = J.block(0, 0, 6*this->number_chains, this->number_robot_joints);
+                knownB.block(0, 0, 6*this->number_chains, 3) = -spareI.block(0, 3, 6*this->number_chains, 3); //Angular velocities
+                knownB.block(0, 3, 6*this->number_chains, this->number_robot_joints) = J.block(0, 0, 6*this->number_chains, this->number_robot_joints);//Robot joints
 
                 /** Form the knowny vector **/
-                knowny.block(0, 0, 3, 1) = cartesianVelocities.template block<3, 1> (3,0);
-                knowny.block(3, 0, this->number_robot_joints, 1) = modelVelocities.block(0, 0, this->number_robot_joints, 1);
+                knowny.block(0, 0, 3, 1) = cartesianVelocities.template block<3, 1> (3,0); //Angular velocities
+                knowny.block(3, 0, this->number_robot_joints, 1) = modelVelocities.block(0, 0, this->number_robot_joints, 1); //Robot joints
+
+                /** Contact angles per each Tree in the known par of the system **/
+                if (known_contact_angles == true)
+                {
+                    knownB.block(0, 3+this->number_robot_joints, 6*this->number_chains, this->number_contact_joints) = J.block(0, this->number_robot_joints+this->number_slip_joints, 6*this->number_chains, this->number_contact_joints);//Robot joints
+                    knowny.block(3+this->number_robot_joints, 0, this->number_contact_joints, 1) = modelVelocities.block(this->number_robot_joints+this->number_slip_joints, 0, this->number_contact_joints, 1);
+                }
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 std::cout<< "[MOTION_MODEL] spareI is of size "<<spareI.rows()<<"x"<<spareI.cols()<<"\n";
@@ -212,17 +224,20 @@ namespace threed_odometry
              * kinematics equations to finally solve the Weighting Least-Square method.
              *
              * The Navigation kinematics equation: A * x = B * y
-             * This method(navigation solver) perform the solution to the system above, solving:
+             * This method (navigation solver) perform the solution to the system above, solving:
              *
              *               x = (A^T * W * A)^(-1) * A^T * W * B * y
              *
              * @param[in] modelPositions, position values of the model (joints, slip and contact angle)
-             * @param[in, out] modelVelocities, velocity values of the model 9joints, slip and contact angle)
+             * @param[in, out] modelVelocities, velocity values of the model (joints, slip and contact angle)
              * @param[in] J, The complete robot Jacobian matrix
              * @param[in, out] cartesianVelocities, velocities of the robot Cartesian space (w.r.t local body frame).
              * @param[in, out] modelVelCov, uncertainty in the measurement of the robot model velocities (joint space).
-             * @param[in, out] cartesianVelCov, uncertainty in the measurement of the robot (local body frame) Cartesian velocities.
-             * @param[in] Weight, trees Weighting matrix (which robot's tree has more weight to the computation).
+             * @param[in, out] cartesianVelCov, uncertainty in the measurement of the robot Cartesian velocities (w.r.t local body frame).
+             * @param[in] Weight, trees Weighting matrix. It defines which robot's tree has more weight to the computation (0 will not have
+             * contribution to the movement, no-contact).
+             * @param[in] known_contact_angles, flags to set to true when the contact angles is known, false otherwise. This affect to
+             * vectors and matrices dimensions.
              */
             virtual double navSolver(const Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelPositions,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelVelocities,
@@ -230,20 +245,32 @@ namespace threed_odometry
                                     Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &modelVelCov,
                                     Eigen::Matrix <_Scalar, 6, 6> &cartesianVelCov,
-                                    const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight)
+                                    const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> Weight,
+                                    bool known_contact_angles = false)
             {
                 double normalizedError = std::numeric_limits<double>::quiet_NaN(); //solution error of the Least-Squares
-                std::vector<_Scalar> vectorPositions; // model positions in std_vector form
-                vectorPositions.resize(model_dof);
-                std::fill(vectorPositions.begin(), vectorPositions.end(), 0);
+
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> unknownA; // Nav non-sensed values matrix
-                unknownA.resize(6*this->number_chains, 3+this->number_chains+this->number_contact_joints);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> unknownx; // Nav non-sensed values vector
-                unknownx.resize(3+this->number_chains+this->number_contact_joints, 1);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> knownB; // Nav sensed values matrix
-                knownB.resize(6*this->number_chains, 3+this->number_robot_joints);
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knowny; // Nav sensed values vector
-                knowny.resize(3+this->number_robot_joints, 1);
+
+                if (known_contact_angles == false)
+                {
+                    /** Resize the vector and matrices to the right dimensions **/
+                    unknownA.resize(6*this->number_chains, 3+this->number_chains+this->number_contact_joints);// position, z-slip and contact angles
+                    unknownx.resize(3+this->number_chains+this->number_contact_joints, 1);// position, z-slip and contact angles
+                    knownB.resize(6*this->number_chains, 3+this->number_robot_joints);// rotation and robot joints
+                    knowny.resize(3+this->number_robot_joints, 1);// rotation and robot joints
+                }
+                else
+                {
+                    /** Resize the vector and matrices to the right dimensions **/
+                    unknownA.resize(6*this->number_chains, 3+this->number_chains); // position and z-slip
+                    unknownx.resize(3+this->number_chains); // position and z-slip
+                    knownB.resize(6*this->number_chains, 3+this->number_robot_joints+this->number_contact_joints);// rotation, robot joints and contact angles
+                    knowny.resize(3+this->number_robot_joints+this->number_contact_joints, 1);// rotation, robot joints and contact angles
+                }
 
                 /** Initialize  variables **/
                 unknownA.setZero(); unknownx.setZero();
@@ -258,15 +285,12 @@ namespace threed_odometry
                 #endif
 
                 /** Assert vectors sizes **/
-                assert(modelPositions.size() == vectorPositions.size());
                 assert(modelPositions.size() == modelVelocities.size());
+                assert(modelPositions.size() == this->model_dof);
                 assert(modelVelCov.cols() == modelVelCov.rows());
                 assert(modelVelCov.cols() == modelVelocities.size());
                 assert(Weight.cols() == 6*this->number_chains);
                 assert(Weight.rows() == 6*this->number_chains);
-
-                /** Copy Eigen to vector **/
-                Eigen::Map <Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> > (&(vectorPositions[0]), model_dof) = modelPositions;
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
                 std::cout<< "[MOTION_MODEL] Weight is of size "<<Weight.rows()<<"x"<<Weight.cols()<<"\n";
@@ -277,7 +301,7 @@ namespace threed_odometry
 
                 /** Form the Composite Navigation Equations and Noise Covariance **/
                 this->navEquations (cartesianVelocities, modelVelocities, J,
-                        cartesianVelCov, modelVelCov, unknownA, unknownx, knownB, knowny);
+                        cartesianVelCov, modelVelCov, unknownA, unknownx, knownB, knowny, known_contact_angles);
 
                 /** Solve the Motion Model by Least-Squares (navigation kinematics) **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knownb;
@@ -285,24 +309,48 @@ namespace threed_odometry
                 knownb = knownB*knowny;
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
-                /** DEBUG OUTPUT **/
-                Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> Conj;
-                Conj.resize(6*this->number_chains, 3+this->number_chains+this->number_contact_joints+1);
+                if (known_contact_angles == false)
+                {
+                    /** DEBUG OUTPUT **/
+                    Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> Conj;
+                    Conj.resize(6*this->number_chains, 3+this->number_chains+this->number_contact_joints+1);
 
-                Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompA(unknownA);
-                std::cout << "[MOTION_MODEL] The rank of A is " << lu_decompA.rank() << std::endl;
+                    Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompA(unknownA);
+                    std::cout << "[MOTION_MODEL] The rank of A is " << lu_decompA.rank() << std::endl;
 
-                Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompB(knownB);
-                std::cout << "[MOTION_MODEL] The rank of B is " << lu_decompB.rank() << std::endl;
+                    Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompB(knownB);
+                    std::cout << "[MOTION_MODEL] The rank of B is " << lu_decompB.rank() << std::endl;
 
-                Conj.block(0, 0, 6*this->number_chains, 3+this->number_chains+this->number_contact_joints) = unknownA;
-                Conj.block(0, 3+this->number_chains+this->number_contact_joints, 6*this->number_chains, 1) = knownb;
-                Eigen::FullPivLU< Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompConj(Conj);
-                std::cout << "[MOTION_MODEL] The rank of A|B*y is " << lu_decompConj.rank() << std::endl;
-                std::cout << "[MOTION_MODEL] Pseudoinverse of A\n" << (unknownA.transpose() * Weight * unknownA).inverse() << std::endl;
+                    Conj.block(0, 0, 6*this->number_chains, 3+this->number_chains+this->number_contact_joints) = unknownA;
+                    Conj.block(0, 3+this->number_chains+this->number_contact_joints, 6*this->number_chains, 1) = knownb;
+                    Eigen::FullPivLU< Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompConj(Conj);
+                    std::cout << "[MOTION_MODEL] The rank of A|B*y is " << lu_decompConj.rank() << std::endl;
+                    std::cout << "[MOTION_MODEL] Pseudoinverse of A\n" << (unknownA.transpose() * Weight * unknownA).inverse() << std::endl;
+                }
+                else
+                {
+                    /** DEBUG OUTPUT **/
+                    Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic> Conj;
+                    Conj.resize(6*this->number_chains, 3+this->number_chains+1);
+
+                    Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompA(unknownA);
+                    std::cout << "[MOTION_MODEL] The rank of A is " << lu_decompA.rank() << std::endl;
+
+                    Eigen::FullPivLU<Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompB(knownB);
+                    std::cout << "[MOTION_MODEL] The rank of B is " << lu_decompB.rank() << std::endl;
+
+                    Conj.block(0, 0, 6*this->number_chains, 3+this->number_chains) = unknownA;
+                    Conj.block(0, 3+this->number_chains, 6*this->number_chains, 1) = knownb;
+                    Eigen::FullPivLU< Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> > lu_decompConj(Conj);
+                    std::cout << "[MOTION_MODEL] The rank of A|B*y is " << lu_decompConj.rank() << std::endl;
+                    std::cout << "[MOTION_MODEL] Pseudoinverse of A\n" << (unknownA.transpose() * Weight * unknownA).inverse() << std::endl;
+
+
+                }
                 /*******************/
                 #endif
 
+                /** Solve the system **/
                 unknownx = (unknownA.transpose() * Weight * unknownA).ldlt().solve(unknownA.transpose() * Weight * knownb);
 
                 /** Error of the solution **/
@@ -310,13 +358,23 @@ namespace threed_odometry
                 if (knownb.norm() != 0.00)
                     normalizedError = sqrt(squaredError[0]) / knownb.norm();
 
-
                 /** Error covariance matrix **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> errorCov;
                 errorCov.resize(6*this->number_chains, 6*this->number_chains);
                 errorCov = (unknownA*unknownx - knownb).asDiagonal(); errorCov *= errorCov;// L-S error covariance
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> uncertaintyCov; // noise cov
-                uncertaintyCov.resize(3+this->number_chains+this->number_contact_joints, 3+this->number_chains+this->number_contact_joints);
+
+                /** Error in the solution. The size depends on the known_contact_angles **/
+                if (known_contact_angles == false)
+                {
+                    uncertaintyCov.resize(3+this->number_chains+this->number_contact_joints, 3+this->number_chains+this->number_contact_joints);
+                }
+                else
+                {
+                    uncertaintyCov.resize(3+this->number_chains, 3+this->number_chains);
+                }
+
+                /** Least square error **/
                 uncertaintyCov = (unknownA.transpose() * errorCov.inverse() * unknownA).inverse(); // Observer
                 uncertaintyCov = 0.5*(uncertaintyCov + uncertaintyCov.transpose());// Guarantee symmetry
 
@@ -324,7 +382,7 @@ namespace threed_odometry
                 cartesianVelocities.block(0, 0, 3, 1) = unknownx.block(0, 0, 3, 1); // Linear velocities
                 cartesianVelCov.block(0, 0, 3, 3) = uncertaintyCov.block(0, 0, 3,3);//Linear Velocities noise
 
-                /** Angular velocity estimated noise (experimental). Get the uncertainty of the angular velocity from the LS covariance **/
+                /** Angular velocity estimated noise (EXPERIMENTAL). Get the uncertainty of the angular velocity from the LS covariance **/
                 if (cartesianVelCov.block(3, 3, 3, 3) == Eigen::Matrix3d::Zero())
                 {
                     /** There is one per each _RobotTrees. errorCov is a 6*_RobotTrees x 6*_RobotTrees matrix dimension **/
@@ -334,15 +392,18 @@ namespace threed_odometry
                     }
                 }
 
-                /** Non-holonomic constraint Slip vector **/
+                /** Save the non-holonomic constraint, z-slip velocity vector **/
                 modelVelocities.block(this->number_robot_joints+this->number_slip_joints-(this->number_chains), 0, this->number_chains, 1) = unknownx.block(3, 0, this->number_chains, 1);
                 modelVelCov.block(this->number_robot_joints+this->number_slip_joints-(this->number_chains), this->number_robot_joints+this->number_slip_joints-(this->number_chains), this->number_chains, this->number_chains) = uncertaintyCov.block(3, 3, this->number_chains, this->number_chains);//pseudoInvUnknownA.col(3+i)[3+i]; For the time being set the error to the error in the estimation
 
-                /** Contact angles per each Tree **/
-                for (register int i=0; i<this->number_contact_joints; ++i)
+                if (known_contact_angles == false)
                 {
-                    modelVelocities[this->number_robot_joints+this->number_slip_joints+i] = unknownx[3+this->number_chains+i];
-                    modelVelCov.col(this->number_robot_joints+this->number_slip_joints+i)[this->number_robot_joints+this->number_slip_joints+i] = uncertaintyCov.col(3+this->number_chains+i)[3+this->number_chains+i];//pseudoInvUnknownA.col(3+_RobotTrees+i)[3+_RobotTrees+i];
+                    /** Save the estimated contact angle velocities per each Tree **/
+                    for (register int i=0; i<this->number_contact_joints; ++i)
+                    {
+                        modelVelocities[this->number_robot_joints+this->number_slip_joints+i] = unknownx[3+this->number_chains+i];
+                        modelVelCov.col(this->number_robot_joints+this->number_slip_joints+i)[this->number_robot_joints+this->number_slip_joints+i] = uncertaintyCov.col(3+this->number_chains+i)[3+this->number_chains+i];//pseudoInvUnknownA.col(3+_RobotTrees+i)[3+_RobotTrees+i];
+                    }
                 }
 
                 #ifdef DEBUG_PRINTS_ODOMETRY_MOTION_MODEL
@@ -378,15 +439,6 @@ namespace threed_odometry
                 return normalizedError;
             }
 
-             /**@brief Solver for the Slip equations
-             * TO-DO
-             */
-            virtual base::Vector6d slipSolver(void)
-            {
-                base::Vector6d s;
-
-                return s;
-            }
     };
 }
 
