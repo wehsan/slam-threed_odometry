@@ -81,7 +81,7 @@ namespace threed_odometry
     static void printLink(const KDL::SegmentMap::const_iterator& link, const std::string& prefix)
     {
         std::cout << prefix << "- Segment " << link->second.segment.getName() << " [Joint "<< link->second.segment.getJoint().getName()<<
-            "] has " << link->second.children.size() << " children" << std::endl;
+            "] origin axis: "<<link->second.segment.getJoint().JointOrigin()<<" rotating axis: "<<link->second.segment.getJoint().JointAxis()<<" has " << link->second.children.size() << " children" << std::endl;
         for (unsigned int i=0; i<link->second.children.size(); ++i)
             printLink(link->second.children[i], prefix + "  ");
     };
