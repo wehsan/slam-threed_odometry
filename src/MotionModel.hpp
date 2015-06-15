@@ -38,7 +38,7 @@
 #include <Eigen/Dense> /** for the algebra and transformation matrices and accessing Matrixblock and corner among others**/
 #include <Eigen/Cholesky> /** For the Cholesky decomposition **/
 
-//#define DEBUG_PRINTS_ODOMETRY_MOTION_MODEL 1 //TO-DO: Remove this. Only for testing (master branch) purpose
+#define DEBUG_PRINTS_ODOMETRY_MOTION_MODEL 1 //TO-DO: Remove this. Only for testing (master branch) purpose
 
 namespace threed_odometry
 {
@@ -375,7 +375,7 @@ namespace threed_odometry
                 }
 
                 /** Least square error **/
-                uncertaintyCov = (unknownA.transpose() * errorCov.inverse() * unknownA).inverse(); // Observer
+                uncertaintyCov = unknownA.transpose() * errorCov * unknownA; // Observer //uncertaintyCov = (unknownA.transpose() * errorCov.inverse() * unknownA).inverse();
                 uncertaintyCov = 0.5*(uncertaintyCov + uncertaintyCov.transpose());// Guarantee symmetry
 
                 /** Save the results in the parameters (previous NaN values are now just known quantities) **/
