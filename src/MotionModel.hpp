@@ -375,7 +375,17 @@ namespace threed_odometry
                 }
 
                 /** Least square error **/
-                uncertaintyCov = unknownA.transpose() * errorCov * unknownA; // Observer //uncertaintyCov = (unknownA.transpose() * errorCov.inverse() * unknownA).inverse();
+                Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> errorCovinverse;
+                errorCovinverse = errorCov.inverse();
+                if (base::isnotnan< Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> >(errorCovinverse))
+                {
+                    uncertaintyCov = (unknownA.transpose() * errorCovinverse * unknownA).inverse(); // Observer
+                }
+                else
+                {
+                    uncertaintyCov = unknownA.transpose() * errorCov * unknownA; // Observer
+                }
+
                 uncertaintyCov = 0.5*(uncertaintyCov + uncertaintyCov.transpose());// Guarantee symmetry
 
                 /** Save the results in the parameters (previous NaN values are now just known quantities) **/
