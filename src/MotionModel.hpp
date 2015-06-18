@@ -104,8 +104,6 @@ namespace threed_odometry
             inline void navEquations(const Eigen::Matrix <_Scalar, 6, 1> &cartesianVelocities,
                                     const Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &modelVelocities,
                                     const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &J,
-                                    const Eigen::Matrix <_Scalar, 6, 6> &cartesianVelCov,
-                                    const Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &modelVelCov,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &unknownA,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> &unknownx,
                                     Eigen::Matrix <_Scalar, Eigen::Dynamic, Eigen::Dynamic> &knownB,
@@ -300,8 +298,7 @@ namespace threed_odometry
                 #endif
 
                 /** Form the Composite Navigation Equations and Noise Covariance **/
-                this->navEquations (cartesianVelocities, modelVelocities, J,
-                        cartesianVelCov, modelVelCov, unknownA, unknownx, knownB, knowny, known_contact_angles);
+                this->navEquations (cartesianVelocities, modelVelocities, J, unknownA, unknownx, knownB, knowny, known_contact_angles);
 
                 /** Solve the Motion Model by Least-Squares (navigation kinematics) **/
                 Eigen::Matrix <_Scalar, Eigen::Dynamic, 1> knownb;
@@ -393,8 +390,10 @@ namespace threed_odometry
                 cartesianVelCov.block(0, 0, 3, 3) = uncertaintyCov.block(0, 0, 3,3);//Linear Velocities noise
 
                 /** Angular velocity estimated noise (EXPERIMENTAL). Get the uncertainty of the angular velocity from the LS covariance **/
-                if (cartesianVelCov.block(3, 3, 3, 3) == Eigen::Matrix3d::Zero())
+                if (cartesianVelCov.block(3, 3, 3, 3) != cartesianVelCov.block(3, 3, 3, 3))
                 {
+                    cartesianVelCov.block(3, 3, 3, 3).setZero();
+
                     /** There is one per each _RobotTrees. errorCov is a 6*_RobotTrees x 6*_RobotTrees matrix dimension **/
                     for (register size_t i=0; i<this->number_chains; ++i)
                     {
