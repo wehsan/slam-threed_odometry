@@ -284,8 +284,8 @@ void KinematicKDL::unpackJoints(const std::vector<std::string>& joint_names, con
 void KinematicKDL::organizeJacobian(const int chainidx, const std::vector<std::string> &joint_names, const std::vector<std::string> &involved_joints,
                                     const Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> &jacobian, Eigen::Matrix <double, Eigen::Dynamic, Eigen::Dynamic> &J)
 {
-    assert(joint_names.size() == J.cols());
-    assert(involved_joints.size() == jacobian.cols());
+    assert(joint_names.size() == static_cast<unsigned int> (J.cols()));
+    assert(involved_joints.size() == static_cast<unsigned int>(jacobian.cols()));
 
     for (register int i=0; i<static_cast<int>(involved_joints.size()); ++i)
     {
