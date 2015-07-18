@@ -1,4 +1,5 @@
-/**\file MotionModel.hpp
+/**
+ * \file MotionModel.hpp
  *
  * This class provided a Motion Model solver for any mobile robot (wheel or leg)
  * with articulated joints.
