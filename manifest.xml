@@ -20,4 +20,6 @@
   -->
   <depend package="base/types" />
   <depend package="control/kdl_parser" />
+
+  <tags>stable</tags>
 </package>
