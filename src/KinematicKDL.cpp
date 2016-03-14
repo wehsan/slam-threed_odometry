@@ -10,6 +10,9 @@
 #define EIGEN_NO_AUTOMATIC_RESIZING //To avoid automatic resizing of Dynamic Matrices
 
 //#define DEBUG_PRINTS 1
+/* URDF */
+#include <urdf_parser/urdf_parser.h>
+#include <urdf_model/model.h>
 
 using namespace threed_odometry;
 

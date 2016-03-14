@@ -37,9 +37,6 @@
 #include <kdl/treejnttojacsolver.hpp> /** For Jacobian matrix **/
 
 
-/* URDF */
-#include <urdf_parser/urdf_parser.h>
-#include <urdf_model/model.h>
 
 namespace threed_odometry
 {
