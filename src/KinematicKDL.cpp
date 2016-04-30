@@ -245,10 +245,10 @@ Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> KinematicKDL::jacobianSolv
                 Eigen::Vector3d column_vector;
                 column_vector = eigenjacob.block(0, p, 3, 1);
                 column_vector = fkTrans[chainidx].rotation() * column_vector;
-                eigenjacob.block(0, p, 3, 1) = -column_vector;
+                eigenjacob.block(0, p, 3, 1) = column_vector;
                 column_vector = eigenjacob.block(3, p, 3, 1);
                 column_vector = fkTrans[chainidx].rotation() * column_vector;
-                eigenjacob.block(3, p, 3, 1) = -column_vector;
+                eigenjacob.block(3, p, 3, 1) = column_vector;
             }
 
             this->organizeJacobian(chainidx, names, this->ichains_joint_names[chainidx], eigenjacob, J);
